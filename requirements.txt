@@ -1,0 +1,26 @@
+# Recommended Python: 3.11-3.13.
+# The notebook was developed with Python 3.13.x.
+
+# LangChain RAG runtime
+langchain-core
+langchain-community
+langchain-openai
+faiss-cpu
+
+# OpenAI API key loading for local apps/scripts
+python-dotenv
+
+# Terminal Markdown rendering for smoke tests
+rich
+
+# Local demo app
+streamlit
+
+# PDF chunking support for src/tcmagent/chunk.py
+pymupdf
+pypdf
+
+# Notebook evaluation and score visualization
+numpy
+pandas
+matplotlib
