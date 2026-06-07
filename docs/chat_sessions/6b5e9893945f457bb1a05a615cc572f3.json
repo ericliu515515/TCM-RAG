@@ -1,0 +1,73 @@
+{
+  "id": "6b5e9893945f457bb1a05a615cc572f3",
+  "title": "Hi",
+  "created_at": "2026-06-07T16:04:17",
+  "updated_at": "2026-06-07T16:07:31",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hi"
+    },
+    {
+      "role": "assistant",
+      "content": "This question does not look related to the TCM source material.",
+      "sources": [],
+      "scores": [
+        1.5853699445724487,
+        1.59541916847229,
+        1.640075922012329,
+        1.6515055894851685,
+        1.6531243324279785
+      ],
+      "search_question": "Hi"
+    },
+    {
+      "role": "user",
+      "content": "中醫理論起源於？"
+    },
+    {
+      "role": "assistant",
+      "content": "中醫理論起源於中國古代哲學和社會文化的深厚基礎。它通過多年的醫療實踐與反思，逐漸形成了一套完整的理論體系，涉及氣、陰陽、五行等基本概念。\n\n首先，中醫的理論構建依賴於古代哲學思想，如氣一元論、陰陽學說及五行學說等，這些學說影響並融入了中醫的思考方式及推理工具。這為中醫整體觀的建立奠定了思想基礎，也推動了中醫方法論的進步。[TCM Basic Theory p.52](https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=52)\n\n其次，中醫理論的形成歷經社會變革和學術多元的背景。如春秋戰國至秦漢時期，自然科學發展迅速，醫學理論與實踐相互促進，使中醫能以古代哲學為基礎，制定各種病因、診斷及治療的方法，從而逐步形成中醫的理論體系。[TCM Basic Theory p.51](https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=51)\n\n最後，積累豐富的臨床醫療經驗也極大推動了中醫理論的發展，醫生在臨床中通過觀察與實驗，逐漸形成符合實際情況的理論，這些理論隨著時間的推移被不斷驗證與修訂，進一步完善了中醫的病機學說與治療方法。[TCM Basic Theory p.115](https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=115)\n\n綜合來說，中醫理論的起源是多重因素交織的結果，由古代哲學的思想精髓映射至醫學實踐，再轉化為系統化的理論，為中醫的繼續發展奠定了重要基礎。",
+      "sources": [
+        {
+          "chunk_id": "p52_c3",
+          "pdf_page": 52,
+          "citation_markdown": "[TCM Basic Theory p.52](https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=52)",
+          "citation_link": "https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=52"
+        },
+        {
+          "chunk_id": "p51_c3",
+          "pdf_page": 51,
+          "citation_markdown": "[TCM Basic Theory p.51](https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=51)",
+          "citation_link": "https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=51"
+        },
+        {
+          "chunk_id": "p115_c1",
+          "pdf_page": 115,
+          "citation_markdown": "[TCM Basic Theory p.115](https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=115)",
+          "citation_link": "https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=115"
+        },
+        {
+          "chunk_id": "p335-336_c2",
+          "pdf_page": 335,
+          "citation_markdown": "[TCM Basic Theory pp.335-336](https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=335)",
+          "citation_link": "https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=335"
+        },
+        {
+          "chunk_id": "p52-53_c4",
+          "pdf_page": 52,
+          "citation_markdown": "[TCM Basic Theory pp.52-53](https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=52)",
+          "citation_link": "https://xiaojiang.byethost16.com/soft/%E7%94%B5%E5%AD%90%E4%B9%A6/%E4%B8%AD%E5%8C%BB%E5%9F%BA%E7%A1%80%E7%90%86%E8%AE%BA%EF%BC%88%E6%96%B0%E4%B8%96%E7%BA%AA%E7%AC%AC4%E7%89%88%EF%BC%89cnzyy.org.pdf?i=1#page=52"
+        }
+      ],
+      "scores": [
+        0.9191440939903259,
+        0.9194743633270264,
+        0.9572585821151733,
+        0.9670311808586121,
+        0.9713503122329712
+      ],
+      "search_question": "中醫理論的起源是什麼？"
+    }
+  ]
+}

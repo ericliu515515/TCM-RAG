@@ -10,7 +10,8 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 # Location of the saved FAISS index used for retrieval.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-VECTORSTORE_DIR = PROJECT_ROOT / "docs" / "faiss_openai_test_embedding_3_small"
+SOURCE_DIR = PROJECT_ROOT / "docs" / "sources" / "tcm_basic_theory"
+VECTORSTORE_DIR = SOURCE_DIR / "vectorstores" / "faiss_openai_test_embedding_3_small"
 
 
 @lru_cache(maxsize=1)
@@ -269,14 +270,19 @@ def rewrite_search_question(question: str, chat_history: list[dict] | None) -> s
 # 1. Receive the latest user question and optional previous chat history.
 # 2. Rewrite the latest question into a standalone retrieval question if needed.
 # 3. Retrieve matching chunks from FAISS.
-# 4. Drop weak matches using MAX_DISTANCE.
+# 4. Drop weak matches using the selected max_distance threshold.
 # 5. Send original question, rewritten question, chat history, and retrieved
 #    context into the final answer chain.
 # 6. Return answer text plus debugging metadata for the UI.
-def ask_tcm(question: str, chat_history: list[dict] | None = None) -> dict:
+def ask_tcm(
+    question: str,
+    chat_history: list[dict] | None = None,
+    max_distance: float = MAX_DISTANCE,
+) -> dict:
     # Load cached shared resources. These are expensive to create repeatedly.
     vectorstore = get_vectorstore()
     chain = get_chain()
+    threshold = float(max_distance)
 
     # Convert previous messages to text for the final answer prompt.
     chat_history_text = format_chat_history(chat_history)
@@ -290,7 +296,7 @@ def ask_tcm(question: str, chat_history: list[dict] | None = None) -> dict:
     scores = [float(score) for _, score in results]
 
     # Keep only chunks that are close enough to the question.
-    kept_results = [(doc, score) for doc, score in results if score < MAX_DISTANCE]
+    kept_results = [(doc, score) for doc, score in results if score < threshold]
 
     # If nothing passes the threshold, avoid answering from weak context.
     if not kept_results:
@@ -299,6 +305,7 @@ def ask_tcm(question: str, chat_history: list[dict] | None = None) -> dict:
             "sources": [],
             "scores": scores,
             "search_question": search_question,
+            "max_distance": threshold,
         }
 
     # Format retrieved chunks as context and generate the final answer.
@@ -322,4 +329,5 @@ def ask_tcm(question: str, chat_history: list[dict] | None = None) -> dict:
         "sources": [doc.metadata for doc, _ in kept_results],
         "scores": scores,
         "search_question": search_question,
+        "max_distance": threshold,
     }
