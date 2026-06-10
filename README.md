@@ -6,6 +6,18 @@ One of the main challenges of Traditional Chinese Medicine (TCM) chatbots is hal
 
 Since TCM answers can vary across different schools of thought, we also provide a "You Decide the Truth" feature. Users can upload trusted text-based PDF documents to build their own RAG knowledge base. An AI tool then generates a Python script to convert these PDFs into JSONL format, allowing the chatbot to answer questions based on the user's chosen sources.
 
+## Model Configuration
+
+- **Embedding model:** `text-embedding-3-small`
+  - Used to embed document chunks and build FAISS vectorstores.
+- **Chunker script model:** `gpt-4o-mini` by default
+  - Generates the Python `chunk_pages(pages)` script that converts extracted PDF
+    pages into JSONL chunks.
+  - Can be overridden with the `OPENAI_CHUNKER_MODEL` environment variable.
+- **Response generation model:** `gpt-4o-mini`
+  - Generates the final chatbot answer from retrieved source context and
+    citation links.
+
 ## Architecture
 
 ```text
@@ -61,5 +73,3 @@ Then open the local Streamlit URL, usually `http://localhost:8501`.
 
 - The app depends on the quality of extracted PDF text. Unusual PDF
   layout can reduce retrieval quality.
-
-

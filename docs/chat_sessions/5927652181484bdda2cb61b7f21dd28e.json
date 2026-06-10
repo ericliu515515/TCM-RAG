@@ -1,0 +1,18 @@
+{
+  "id": "5927652181484bdda2cb61b7f21dd28e",
+  "title": "脾主什麼？",
+  "created_at": "2026-06-10T14:34:51",
+  "updated_at": "2026-06-10T14:34:51",
+  "messages": [
+    {
+      "role": "user",
+      "content": "脾主什麼？"
+    },
+    {
+      "role": "assistant",
+      "content": "The RAG pipeline failed to run.",
+      "sources": [],
+      "scores": []
+    }
+  ]
+}
