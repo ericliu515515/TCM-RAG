@@ -1,0 +1,27 @@
+{
+  "passed": false,
+  "errors": [
+    "Chunk 1 is too long (87836 chars)."
+  ],
+  "warnings": [],
+  "stats": {
+    "source_page_count": 99,
+    "source_non_empty_page_count": 98,
+    "source_text_chars": 81327,
+    "referenced_page_count": 0,
+    "unreferenced_text_page_count": 98,
+    "referenced_source_chars": 0,
+    "referenced_source_chars_ratio": 0.0,
+    "chunk_text_chars": 0,
+    "chunk_to_source_chars_ratio": 0.0,
+    "chunk_count": 0,
+    "chunk_chars_min": 0,
+    "chunk_chars_avg": 0,
+    "chunk_chars_max": 0,
+    "short_chunk_count": 0,
+    "short_chunk_ratio": 0,
+    "source_match_ratio_min": 0,
+    "source_match_ratio_avg": 0,
+    "source_match_ratio_max": 0
+  }
+}

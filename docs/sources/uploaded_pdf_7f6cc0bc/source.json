@@ -1,0 +1,145 @@
+{
+  "id": "uploaded_pdf_7f6cc0bc",
+  "display_name": "針灸實證臨床治療指引",
+  "original_filename": "針灸實證臨床治療指引.pdf",
+  "chunks_path": "chunks.jsonl",
+  "source_type": "uploaded_pdf",
+  "file_sha256": "86d6c8766d3481c9e418496c4678e2c76181de8e55fcb3af64cc33e71fc16cac",
+  "created_at": "2026-06-10T11:55:17",
+  "pdf_extraction": {
+    "status": "extracted",
+    "pages_path": "pages.json",
+    "page_count": 104,
+    "non_empty_page_count": 101,
+    "error": "",
+    "updated_at": "2026-06-10T12:10:09"
+  },
+  "chunking": {
+    "status": "accepted",
+    "latest_run_id": "run_20260610T121249_6_581084ee",
+    "attempt": 6,
+    "max_attempts": 7,
+    "updated_at": "2026-06-10T12:14:05",
+    "forced_acceptance": false,
+    "accepted_reason": "highest_separation_score_fallback",
+    "judge_report": {
+      "reasoning_summary": "The chunking process has resulted in several overly long chunks, which can hinder retrieval quality by merging unrelated content and making it difficult to extract coherent information. Additionally, the separation score indicates that the current chunking may not effectively distinguish between relevant and irrelevant questions.",
+      "problems": [
+        "Multiple chunks exceed the recommended length, with some reaching over 2600 characters, which can lead to loss of context and coherence.",
+        "There are no short chunks, but the absence of shorter chunks may indicate a lack of granularity in the chunking process.",
+        "The separation score suggests that the chunking is not effectively distinguishing between good and bad retrieval questions."
+      ],
+      "feedback_for_chunker": "Reduce the size of chunks to ensure they are coherent and focused on single topics or paragraphs. Aim for chunks that are more manageable in length, ideally under 1000 characters, to improve retrieval quality. Additionally, ensure that chunks do not cut off mid-thought and maintain clear paragraph boundaries."
+    },
+    "retrieval_evaluation": {
+      "top_k": 5,
+      "good_questions_count": 10,
+      "bad_questions_count": 10,
+      "good_avg_top_k_distance": 1.162629,
+      "bad_avg_top_k_distance": 1.683817,
+      "good_questions": [
+        "感冒咳嗽時，中醫會如何根據症狀判斷調理方向？",
+        "長期失眠、容易疲倦，可以從哪些中醫角度分析原因？",
+        "胃脹、食慾差、飯後不舒服時，中醫通常會觀察哪些線索？",
+        "月經不規律或經痛時，中醫會如何辨證與調理？",
+        "腰膝痠軟、手腳冰冷時，中醫可能會考慮哪些體質問題？",
+        "反覆皮膚濕疹或搔癢時，中醫會如何區分可能原因？",
+        "頭痛或肩頸痠痛時，中醫會如何判斷相關因素？",
+        "過敏性鼻炎反覆發作時，中醫可能如何分析與處理？",
+        "中醫調理慢性疲勞時，通常會注意哪些生活與體質因素？",
+        "服用中藥或接受針灸前，病人應該提供哪些症狀與病史資訊？"
+      ],
+      "bad_questions": [
+        "現任美國總統是誰？",
+        "台積電股價今天多少？",
+        "如何用 Python 讀取 CSV 檔案？",
+        "台北明天的天氣預報是什麼？",
+        "NBA 總冠軍賽最新比分是多少？",
+        "如何規劃東京五天四夜自由行？",
+        "披薩麵團需要發酵多久？",
+        "第二次世界大戰是哪一年結束的？",
+        "如何計算複利投資報酬率？",
+        "哪一款筆電適合剪輯 4K 影片？"
+      ],
+      "separation_score": 0.521188
+    },
+    "validation": {
+      "passed": false,
+      "errors": [
+        "Chunk 12 is too long (2242 chars).",
+        "Chunk 28 is too long (2398 chars).",
+        "Chunk 47 is too long (2627 chars).",
+        "Chunk 48 is too long (2854 chars).",
+        "Chunk 73 is too long (2249 chars).",
+        "Chunk 94 is too long (2376 chars).",
+        "Chunk 95 is too long (2319 chars).",
+        "Chunk 96 is too long (2380 chars).",
+        "Chunk 97 is too long (2410 chars).",
+        "Chunk 98 is too long (2395 chars)."
+      ],
+      "warnings": [],
+      "stats": {
+        "source_page_count": 104,
+        "source_non_empty_page_count": 101,
+        "source_text_chars": 124384,
+        "referenced_page_count": 91,
+        "unreferenced_text_page_count": 10,
+        "referenced_source_chars": 103849,
+        "referenced_source_chars_ratio": 0.835,
+        "chunk_text_chars": 103849,
+        "chunk_to_source_chars_ratio": 0.835,
+        "chunk_count": 91,
+        "chunk_chars_min": 135,
+        "chunk_chars_avg": 1271.1,
+        "chunk_chars_max": 2191,
+        "short_chunk_count": 0,
+        "short_chunk_ratio": 0.0,
+        "source_match_ratio_min": 1.0,
+        "source_match_ratio_avg": 1.0,
+        "source_match_ratio_max": 1.0
+      }
+    }
+  },
+  "vectorstores": {
+    "openai_text_embedding_3_small": "vectorstores/faiss_openai_text_embedding_3_small"
+  },
+  "embedding": {
+    "status": "embedded",
+    "model": "text-embedding-3-small",
+    "vectorstore_key": "openai_text_embedding_3_small",
+    "vectorstore_path": "vectorstores/faiss_openai_text_embedding_3_small",
+    "chunk_count": 91,
+    "evaluation": {
+      "top_k": 5,
+      "good_questions_count": 10,
+      "bad_questions_count": 10,
+      "good_avg_top_k_distance": 1.162611,
+      "bad_avg_top_k_distance": 1.683598,
+      "good_questions": [
+        "感冒咳嗽時，中醫會如何根據症狀判斷調理方向？",
+        "長期失眠、容易疲倦，可以從哪些中醫角度分析原因？",
+        "胃脹、食慾差、飯後不舒服時，中醫通常會觀察哪些線索？",
+        "月經不規律或經痛時，中醫會如何辨證與調理？",
+        "腰膝痠軟、手腳冰冷時，中醫可能會考慮哪些體質問題？",
+        "反覆皮膚濕疹或搔癢時，中醫會如何區分可能原因？",
+        "頭痛或肩頸痠痛時，中醫會如何判斷相關因素？",
+        "過敏性鼻炎反覆發作時，中醫可能如何分析與處理？",
+        "中醫調理慢性疲勞時，通常會注意哪些生活與體質因素？",
+        "服用中藥或接受針灸前，病人應該提供哪些症狀與病史資訊？"
+      ],
+      "bad_questions": [
+        "現任美國總統是誰？",
+        "台積電股價今天多少？",
+        "如何用 Python 讀取 CSV 檔案？",
+        "台北明天的天氣預報是什麼？",
+        "NBA 總冠軍賽最新比分是多少？",
+        "如何規劃東京五天四夜自由行？",
+        "披薩麵團需要發酵多久？",
+        "第二次世界大戰是哪一年結束的？",
+        "如何計算複利投資報酬率？",
+        "哪一款筆電適合剪輯 4K 影片？"
+      ]
+    },
+    "updated_at": "2026-06-10T12:14:10"
+  }
+}

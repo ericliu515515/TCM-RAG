@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "errors": [],
+  "warnings": [
+    "Some chunks are very short, but still within the allowed limit (3 / 419 under 10 chars)."
+  ],
+  "stats": {
+    "source_page_count": 422,
+    "source_non_empty_page_count": 419,
+    "source_text_chars": 241372,
+    "referenced_page_count": 419,
+    "unreferenced_text_page_count": 0,
+    "referenced_source_chars": 241372,
+    "referenced_source_chars_ratio": 1.0,
+    "chunk_text_chars": 240921,
+    "chunk_to_source_chars_ratio": 0.998,
+    "chunk_count": 419,
+    "chunk_chars_min": 8,
+    "chunk_chars_avg": 602.5,
+    "chunk_chars_max": 1040,
+    "short_chunk_count": 3,
+    "short_chunk_ratio": 0.007,
+    "source_match_ratio_min": 0.583,
+    "source_match_ratio_avg": 0.993,
+    "source_match_ratio_max": 1.0
+  }
+}

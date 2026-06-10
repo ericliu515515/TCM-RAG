@@ -1,0 +1,31 @@
+Deterministic validation warnings:
+Too many chunks are shorter than 10 chars (79 / 459 = 0.17).
+
+Deterministic validation notes:
+p10_c1 has low source-text match (0.00).
+p11_c1 has low source-text match (0.00).
+p18_c1 has low source-text match (0.00).
+p23_c11 has low source-text match (0.36).
+p23_c22 has low source-text match (0.00).
+p24_c7 has low source-text match (0.36).
+p24_c8 has low source-text match (0.36).
+p25_c2 has low source-text match (0.36).
+p26_c4 has low source-text match (0.36).
+p26_c5 has low source-text match (0.22).
+p26_c8 has low source-text match (0.30).
+
+Feedback problems:
+79 chunks are shorter than 10 characters, which is 17% of the total, exceeding the acceptable limit.
+Multiple chunks have a source-text match ratio of 0.00, indicating they do not align with the source material.
+Some chunks may be too large or contain unrelated content, which can hinder effective retrieval.
+
+Feedback reasoning summary:
+The chunking process has significant issues, particularly with a high number of short chunks and low source-text match in several cases. This affects the overall retrieval quality and coherence of the chunks.
+
+Chunker feedback:
+Focus on creating chunks that are coherent and maintain paragraph integrity. Reduce the number of short chunks and ensure that each chunk has a meaningful connection to the source text.
+
+Retrieval separation:
+good_avg_top_k_distance=1.112722
+bad_avg_top_k_distance=1.534715
+separation_score=0.421993

@@ -137,6 +137,36 @@ def request_selected_source(source_id: str | None) -> None:
     st.session_state.pending_selected_source_id = source_id or ""
 
 
+def normalize_selected_source_id(source_ids: list[str]) -> str | None:
+    if not source_ids:
+        st.session_state.pending_selected_source_id = None
+        st.session_state.pop("selected_source_id", None)
+        return None
+
+    source_id_set = set(source_ids)
+    pending_source_value = st.session_state.get("pending_selected_source_id")
+    pending_source_id = str(pending_source_value or "")
+    current_source_id = str(st.session_state.get("selected_source_id") or "")
+
+    if pending_source_value is not None:
+        selected_source_id = (
+            pending_source_id
+            if pending_source_id in source_id_set
+            else source_ids[0]
+        )
+        st.session_state.pending_selected_source_id = None
+        st.session_state.pop("selected_source_id", None)
+        return selected_source_id
+
+    st.session_state.pending_selected_source_id = None
+    if current_source_id in source_id_set:
+        return current_source_id
+
+    selected_source_id = source_ids[0]
+    st.session_state.pop("selected_source_id", None)
+    return selected_source_id
+
+
 def track_background_job(job_id: str) -> None:
     job_ids = list(st.session_state.background_job_ids)
     if job_id not in job_ids:
@@ -181,6 +211,7 @@ def source_job_in_progress(source_id: str, kinds: set[str] | None = None) -> boo
 
 def any_document_job_in_progress() -> bool:
     document_kinds = {
+        "document_processing",
         "pdf_extraction",
         "chunk_generation",
         "source_embedding",
@@ -195,7 +226,10 @@ def chat_job_in_progress() -> bool:
 
 
 def combined_embedding_job_in_progress() -> bool:
-    return any(str(job.get("kind") or "") == "combined_embedding" for job in active_session_jobs())
+    return any(
+        str(job.get("kind") or "") in {"combined_embedding", "document_processing"}
+        for job in active_session_jobs()
+    )
 
 
 def clamp_job_progress(value: Any) -> float:
@@ -286,6 +320,130 @@ def submit_combined_embedding_job(sources: list[dict], notice_source_id: str) ->
         target=worker,
         args=(sources,),
         metadata={"notice_source_id": notice_source_id},
+        progress_kwarg="progress_callback",
+    )
+
+
+def submit_document_processing_job(source: dict) -> str:
+    def report_pipeline_progress(
+        progress_callback,
+        progress: float,
+        message: str,
+        **event_fields,
+    ) -> None:
+        if progress_callback is None:
+            return
+
+        progress_callback({
+            "progress": progress,
+            "message": message,
+            **event_fields,
+        })
+
+    def reload_source(source_id: str) -> dict:
+        source_record = source_for_id(source_id)
+        if source_record is None:
+            raise FileNotFoundError(f"Document source not found: {source_id}")
+        return source_record
+
+    def worker(source_record: dict, progress_callback=None):
+        if not os.getenv("OPENAI_API_KEY"):
+            raise ValueError("OPENAI_API_KEY is required to process documents.")
+
+        source_id = source_record["id"]
+        report_pipeline_progress(
+            progress_callback,
+            0.03,
+            "Step 1/4: extracting PDF text.",
+        )
+        extraction = extract_pdf_pages_for_source(source_record)
+        if extraction.get("status") != "extracted":
+            raise RuntimeError(extraction.get("error") or "PDF extraction failed.")
+
+        report_pipeline_progress(
+            progress_callback,
+            0.14,
+            (
+                "Step 1/4 complete: extracted "
+                f"{extraction.get('non_empty_page_count', 'unknown')} text pages."
+            ),
+        )
+
+        chunk_progress_start = 0.16
+        chunk_progress_span = 0.54
+
+        def report_chunking_progress(event: dict[str, Any]) -> None:
+            chunk_progress = clamp_job_progress(event.get("progress", 0.0))
+            report_pipeline_progress(
+                progress_callback,
+                chunk_progress_start + (chunk_progress * chunk_progress_span),
+                f"Step 2/4: {event.get('message') or 'generating chunks.'}",
+                feedback=event.get("feedback", ""),
+                feedback_title=event.get("feedback_title", ""),
+                attempt=event.get("attempt"),
+                max_attempts=event.get("max_attempts"),
+                stage=event.get("stage"),
+                run_id=event.get("run_id"),
+            )
+
+        chunking = run_ai_chunking(
+            reload_source(source_id),
+            progress_callback=report_chunking_progress,
+        )
+        if not chunking.get("accepted"):
+            raise RuntimeError("Chunk generation did not produce accepted chunks.")
+
+        report_pipeline_progress(
+            progress_callback,
+            0.72,
+            f"Step 2/4 complete: accepted chunks from {chunking.get('run_id', 'unknown')}.",
+        )
+
+        report_pipeline_progress(
+            progress_callback,
+            0.76,
+            "Step 3/4: embedding document chunks.",
+        )
+        embedding = run_embedding_for_source(reload_source(source_id))
+        report_pipeline_progress(
+            progress_callback,
+            0.86,
+            (
+                "Step 3/4 complete: embedded "
+                f"{embedding.get('chunk_count', 'unknown')} chunks."
+            ),
+        )
+
+        report_pipeline_progress(
+            progress_callback,
+            0.90,
+            "Step 4/4: rebuilding combined vectorstore.",
+        )
+        combined_embedding = run_combined_embedding_for_sources(load_document_sources())
+        report_pipeline_progress(
+            progress_callback,
+            0.98,
+            (
+                "Step 4/4 complete: combined "
+                f"{combined_embedding.get('source_count', 'unknown')} sources."
+            ),
+        )
+
+        return {
+            "status": "processed",
+            "source_id": source_id,
+            "extraction": extraction,
+            "chunking": chunking,
+            "embedding": embedding,
+            "combined_embedding": combined_embedding,
+        }
+
+    return submit_background_job(
+        kind="document_processing",
+        label=f"Processing {source['display_name']}",
+        target=worker,
+        args=(source,),
+        metadata={"source_id": source["id"]},
         progress_kwarg="progress_callback",
     )
 
@@ -483,6 +641,46 @@ def apply_completed_combined_embedding_job(job: dict[str, Any]) -> None:
     }
 
 
+def apply_completed_document_processing_job(job: dict[str, Any]) -> None:
+    source_id = str((job.get("metadata") or {}).get("source_id") or "")
+    try:
+        from tcmrag.rag import clear_rag_cache
+
+        clear_rag_cache()
+    except Exception:
+        pass
+
+    if str(job.get("status") or "") != "completed":
+        st.session_state.chunking_notice = {
+            "source_id": source_id,
+            "kind": "error",
+            "message": f"Document processing failed: {job_error_message(job)}",
+        }
+        return
+
+    result = job.get("result") or {}
+    extraction = result.get("extraction") or {}
+    chunking = result.get("chunking") or {}
+    embedding = result.get("embedding") or {}
+    combined_embedding = result.get("combined_embedding") or {}
+    chunker_run = str(chunking.get("run_id") or "unknown")
+    separation = (chunking.get("retrieval_evaluation") or {}).get("separation_score")
+
+    st.session_state.chunking_notice = {
+        "source_id": source_id,
+        "kind": "success",
+        "message": (
+            "Document processed: "
+            f"extracted `{extraction.get('non_empty_page_count', 'unknown')}` text pages, "
+            f"accepted chunker run `{chunker_run}` "
+            f"with retrieval gap `{format_distance(separation)}`, "
+            f"embedded `{embedding.get('chunk_count', 'unknown')}` chunks, "
+            f"and rebuilt the combined vectorstore from "
+            f"`{combined_embedding.get('source_count', 'unknown')}` sources."
+        ),
+    }
+
+
 def apply_completed_delete_vectorstore_sync_job(job: dict[str, Any]) -> None:
     if str(job.get("status") or "") != "completed":
         st.session_state.document_notice = {
@@ -529,6 +727,9 @@ def apply_completed_background_job(job: dict[str, Any]) -> None:
         return
     if kind == "combined_embedding":
         apply_completed_combined_embedding_job(job)
+        return
+    if kind == "document_processing":
+        apply_completed_document_processing_job(job)
         return
     if kind == "delete_vectorstore_sync":
         apply_completed_delete_vectorstore_sync_job(job)
@@ -961,6 +1162,9 @@ def render_active_jobs_panel() -> None:
         message = str(job.get("message") or label)
         st.caption(label)
         st.progress(clamp_job_progress(job.get("progress", 0.0)), text=message)
+        run_id = str((job.get("metadata") or {}).get("run_id") or "").strip()
+        if run_id:
+            st.caption(f"Chunker run: `{run_id}`")
 
         feedback = truncate_chunking_feedback(str(job.get("feedback") or ""))
         if feedback:
@@ -1022,27 +1226,21 @@ def render_chunking_status(source: dict) -> None:
         )
 
     validation = chunking.get("validation")
-    if status == "failed" and isinstance(validation, dict):
-        errors = validation.get("errors")
-        if isinstance(errors, list) and errors:
-            st.warning(str(errors[0]))
-
-
-def render_source_active_jobs(source: dict) -> None:
-    jobs = source_jobs_in_progress(source["id"])
-    if not jobs:
-        return
-
-    st.caption("Active document jobs")
-    for job in jobs:
-        st.progress(
-            clamp_job_progress(job.get("progress", 0.0)),
-            text=str(job.get("message") or job.get("label") or "Working..."),
-        )
-        feedback = truncate_chunking_feedback(str(job.get("feedback") or ""))
-        if feedback:
-            with st.expander(str(job.get("feedback_title") or "Latest feedback")):
-                st.code(feedback, language="text")
+    if isinstance(validation, dict):
+        deterministic_warnings = []
+        for validation_key in ("errors", "warnings"):
+            values = validation.get(validation_key)
+            if isinstance(values, list):
+                deterministic_warnings.extend(
+                    str(value).strip()
+                    for value in values
+                    if str(value).strip()
+                )
+        if deterministic_warnings:
+            st.warning(
+                "Deterministic validation warning: "
+                f"{deterministic_warnings[0]}"
+            )
 
 
 def render_embedding_status(source: dict) -> None:
@@ -1178,98 +1376,6 @@ def render_pdf_extraction_status(source: dict) -> None:
         st.warning(error)
 
 
-def render_pdf_extraction_control(source: dict, pdf_path: Path | None) -> None:
-    if not is_uploaded_source(source):
-        return
-
-    extraction_in_progress = source_job_in_progress(source["id"])
-    label = "Re-extract PDF" if source["metadata"].get("pdf_extraction") else "Extract PDF"
-    if st.button(
-        label,
-        disabled=pdf_path is None or extraction_in_progress,
-        help="Extract text from the PDF into pages.json.",
-        use_container_width=True,
-    ):
-        job_id = submit_pdf_extraction_job(source)
-        track_background_job(job_id)
-        st.session_state.chunking_notice = {
-            "source_id": source["id"],
-            "kind": "success",
-            "message": "PDF extraction started in the background.",
-        }
-        st.rerun()
-
-
-def render_ai_chunking_control(source: dict, chunks: list[dict], pdf_path: Path | None) -> None:
-    if not is_uploaded_source(source):
-        return
-
-    has_extracted_pages = extracted_pages_ready(source)
-    chunking_in_progress = source_job_in_progress(source["id"])
-    label = "Regenerate chunks" if chunks else "Generate chunks"
-    if st.button(
-        label,
-        disabled=pdf_path is None or not has_extracted_pages or chunking_in_progress,
-        help="Run this after PDF extraction succeeds.",
-        use_container_width=True,
-    ):
-        if not has_extracted_pages:
-            st.session_state.chunking_notice = {
-                "source_id": source["id"],
-                "kind": "error",
-                "message": "Extract PDF before generating chunks.",
-            }
-            st.rerun()
-
-        if not os.getenv("OPENAI_API_KEY"):
-            st.session_state.chunking_notice = {
-                "source_id": source["id"],
-                "kind": "error",
-                "message": "OPENAI_API_KEY is required to generate chunks and feedback.",
-            }
-            st.rerun()
-
-        job_id = submit_chunk_generation_job(source)
-        track_background_job(job_id)
-        st.session_state.chunking_notice = {
-            "source_id": source["id"],
-            "kind": "success",
-            "message": "Chunk generation started in the background.",
-        }
-        st.rerun()
-
-
-def render_embedding_control(source: dict, chunks: list[dict]) -> None:
-    if not is_uploaded_source(source):
-        return
-
-    embedding = source["metadata"].get("embedding")
-    embedding_in_progress = source_job_in_progress(source["id"])
-    label = "Re-embed chunks" if isinstance(embedding, dict) else "Embed chunks"
-    if st.button(
-        label,
-        disabled=not chunks or embedding_in_progress,
-        help="Build a FAISS vectorstore from this document's chunks.",
-        use_container_width=True,
-    ):
-        if not os.getenv("OPENAI_API_KEY"):
-            st.session_state.chunking_notice = {
-                "source_id": source["id"],
-                "kind": "error",
-                "message": "OPENAI_API_KEY is required to embed chunks.",
-            }
-            st.rerun()
-
-        job_id = submit_source_embedding_job(source)
-        track_background_job(job_id)
-        st.session_state.chunking_notice = {
-            "source_id": source["id"],
-            "kind": "success",
-            "message": "Embedding started in the background.",
-        }
-        st.rerun()
-
-
 def render_combined_embedding_control(sources: list[dict], notice_source_id: str) -> None:
     manifest = load_combined_embedding_manifest()
     label = "Rebuild combined vectorstore" if manifest else "Build combined vectorstore"
@@ -1300,6 +1406,57 @@ def render_combined_embedding_control(sources: list[dict], notice_source_id: str
         st.rerun()
 
 
+def render_document_processing_control(source: dict, pdf_path: Path | None) -> None:
+    if not is_uploaded_source(source):
+        return
+
+    has_outputs = (
+        extracted_pages_ready(source)
+        or Path(source["chunks_path"]).exists()
+        or isinstance(source["metadata"].get("embedding"), dict)
+        or source["id"] in combined_manifest_source_ids()
+    )
+    label = "Reprocess document" if has_outputs else "Process document"
+    processing_in_progress = any_document_job_in_progress()
+
+    if st.button(
+        label,
+        disabled=pdf_path is None or processing_in_progress,
+        help=(
+            "Extract PDF text, generate chunks, embed this document, "
+            "then rebuild the combined vectorstore."
+        ),
+        use_container_width=True,
+    ):
+        if pdf_path is None:
+            st.session_state.chunking_notice = {
+                "source_id": source["id"],
+                "kind": "error",
+                "message": "No PDF file found for this document.",
+            }
+            st.rerun()
+
+        if not os.getenv("OPENAI_API_KEY"):
+            st.session_state.chunking_notice = {
+                "source_id": source["id"],
+                "kind": "error",
+                "message": (
+                    "OPENAI_API_KEY is required to extract, chunk, embed, "
+                    "and rebuild the combined vectorstore."
+                ),
+            }
+            st.rerun()
+
+        job_id = submit_document_processing_job(source)
+        track_background_job(job_id)
+        st.session_state.chunking_notice = {
+            "source_id": source["id"],
+            "kind": "success",
+            "message": "Document processing started in the background.",
+        }
+        st.rerun()
+
+
 def render_document_window() -> None:
     st.title("Documents")
     render_document_notice()
@@ -1312,26 +1469,8 @@ def render_document_window() -> None:
 
     source_by_id = {source["id"]: source for source in sources}
     source_ids = list(source_by_id)
-
-    pending_source_id = st.session_state.get("pending_selected_source_id")
-    current_source_id = st.session_state.get("selected_source_id")
-
-    if pending_source_id is not None:
-        if "selected_source_id" in st.session_state:
-            del st.session_state["selected_source_id"]
-
-        current_source_id = pending_source_id if pending_source_id in source_by_id else None
-        st.session_state.pending_selected_source_id = None
-
-    if current_source_id not in source_by_id:
-        if "selected_source_id" in st.session_state:
-            del st.session_state["selected_source_id"]
-        current_source_id = source_ids[0]
-
-    selected_index = 0
-
-    if current_source_id in source_by_id:
-        selected_index = source_ids.index(current_source_id)
+    current_source_id = normalize_selected_source_id(source_ids)
+    selected_index = source_ids.index(current_source_id)
 
     selected_source_id = st.selectbox(
         "Documents",
@@ -1344,16 +1483,13 @@ def render_document_window() -> None:
     chunks = load_source_chunks(source["chunks_path"])
     pdf_path = local_pdf_path(source)
 
+    st.write(f"Document: `{source_label(source)}`")
     render_chunking_notice(source)
     render_pdf_extraction_status(source)
     render_chunking_status(source)
-    render_source_active_jobs(source)
     render_embedding_status(source)
 
     st.caption(f"Chunks: `{len(chunks)}`")
-
-    for filename in source["document_files"]:
-        st.write(f"Document: `{filename}`")
 
     if st.button("Open PDF window", disabled=pdf_path is None, use_container_width=True):
         open_pdf_window(source)
@@ -1370,10 +1506,10 @@ def render_document_window() -> None:
     if not chunks:
         st.info("No chunks found for this document.")
 
-    render_pdf_extraction_control(source, pdf_path)
-    render_ai_chunking_control(source, chunks, pdf_path)
-    render_embedding_control(source, chunks)
-    render_combined_embedding_control(sources, source["id"])
+    if is_uploaded_source(source):
+        render_document_processing_control(source, pdf_path)
+    else:
+        render_combined_embedding_control(sources, source["id"])
     render_delete_document_control(source)
 
     st.divider()
@@ -1768,27 +1904,27 @@ def install_ime_safe_enter_submit() -> None:
 
                 if (!form) return;
 
-                const textarea = form.querySelector('textarea');
+                const input = form.querySelector('textarea, input[type="text"]');
                 const button = form.querySelector('button');
 
-                if (!textarea || !button || textarea.dataset.imeSafeEnterInstalled === "true") {
+                if (!input || !button || input.dataset.imeSafeEnterInstalled === "true") {
                     return;
                 }
 
-                textarea.dataset.imeSafeEnterInstalled = "true";
+                input.dataset.imeSafeEnterInstalled = "true";
                 let composing = false;
 
-                textarea.addEventListener("compositionstart", () => {
+                input.addEventListener("compositionstart", () => {
                     composing = true;
                 });
 
-                textarea.addEventListener("compositionend", () => {
+                input.addEventListener("compositionend", () => {
                     setTimeout(() => {
                         composing = false;
                     }, 0);
                 });
 
-                textarea.addEventListener("keydown", (event) => {
+                input.addEventListener("keydown", (event) => {
                     if (event.key !== "Enter") return;
                     if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
                     if (event.isComposing || composing || event.keyCode === 229) return;
@@ -1819,10 +1955,9 @@ def handle_user_question() -> None:
         input_column, send_column = st.columns([12, 1], vertical_alignment="bottom")
 
         with input_column:
-            question = st.text_area(
+            question = st.text_input(
                 "Message",
                 placeholder="Ask a TCM question...",
-                height=68,
                 label_visibility="collapsed",
             )
 
@@ -1899,6 +2034,7 @@ def handle_user_question() -> None:
 
     st.session_state.messages.append(assistant_message)
     save_current_chat()
+    st.rerun()
 
 
 sync_background_jobs()

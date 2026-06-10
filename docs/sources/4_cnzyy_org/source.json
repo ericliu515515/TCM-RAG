@@ -1,0 +1,141 @@
+{
+  "id": "4_cnzyy_org",
+  "display_name": "中医基础理论（新世纪第4版）cnzyy.org",
+  "original_filename": "中医基础理论（新世纪第4版）cnzyy.org.pdf",
+  "chunks_path": "chunks.jsonl",
+  "source_type": "uploaded_pdf",
+  "file_sha256": "277ee7a6cc46a141347a31fa1af92ff85d3d8f9bae3895f02a4d89f34915a33c",
+  "created_at": "2026-06-10T12:19:27",
+  "pdf_extraction": {
+    "status": "extracted",
+    "pages_path": "pages.json",
+    "page_count": 422,
+    "non_empty_page_count": 419,
+    "error": "",
+    "updated_at": "2026-06-10T12:19:42"
+  },
+  "chunking": {
+    "status": "accepted",
+    "latest_run_id": "run_20260610T122207_5_e565e7f9",
+    "attempt": 5,
+    "max_attempts": 7,
+    "updated_at": "2026-06-10T12:23:29",
+    "forced_acceptance": false,
+    "accepted_reason": "highest_separation_score_fallback",
+    "judge_report": {
+      "reasoning_summary": "The chunking process has produced a variety of chunk sizes, with some chunks being excessively large and potentially merging unrelated topics. Additionally, several chunks exhibit low source-text match ratios, indicating that they may not accurately represent the original content. The separation score suggests that the current chunking may not effectively distinguish between relevant and irrelevant questions, which could impact retrieval quality.",
+      "problems": [
+        "Several chunks are too large, potentially merging unrelated topics.",
+        "Low source-text match ratios in multiple chunks indicate poor representation of the original content.",
+        "The separation score indicates that the chunking may not effectively distinguish relevant from irrelevant questions."
+      ],
+      "feedback_for_chunker": "Consider breaking down larger chunks into smaller, more coherent units that align closely with paragraph boundaries. Ensure that each chunk maintains a high source-text match ratio to improve retrieval accuracy. Additionally, review the chunking process to eliminate any repeated watermark or header/footer noise that may be present."
+    },
+    "retrieval_evaluation": {
+      "top_k": 5,
+      "good_questions_count": 10,
+      "bad_questions_count": 10,
+      "good_avg_top_k_distance": 1.115501,
+      "bad_avg_top_k_distance": 1.673035,
+      "good_questions": [
+        "感冒咳嗽時，中醫會如何根據症狀判斷調理方向？",
+        "長期失眠、容易疲倦，可以從哪些中醫角度分析原因？",
+        "胃脹、食慾差、飯後不舒服時，中醫通常會觀察哪些線索？",
+        "月經不規律或經痛時，中醫會如何辨證與調理？",
+        "腰膝痠軟、手腳冰冷時，中醫可能會考慮哪些體質問題？",
+        "反覆皮膚濕疹或搔癢時，中醫會如何區分可能原因？",
+        "頭痛或肩頸痠痛時，中醫會如何判斷相關因素？",
+        "過敏性鼻炎反覆發作時，中醫可能如何分析與處理？",
+        "中醫調理慢性疲勞時，通常會注意哪些生活與體質因素？",
+        "服用中藥或接受針灸前，病人應該提供哪些症狀與病史資訊？"
+      ],
+      "bad_questions": [
+        "現任美國總統是誰？",
+        "台積電股價今天多少？",
+        "如何用 Python 讀取 CSV 檔案？",
+        "台北明天的天氣預報是什麼？",
+        "NBA 總冠軍賽最新比分是多少？",
+        "如何規劃東京五天四夜自由行？",
+        "披薩麵團需要發酵多久？",
+        "第二次世界大戰是哪一年結束的？",
+        "如何計算複利投資報酬率？",
+        "哪一款筆電適合剪輯 4K 影片？"
+      ],
+      "separation_score": 0.557534
+    },
+    "validation": {
+      "passed": true,
+      "errors": [],
+      "warnings": [
+        "p13_c1 has low source-text match (0.21).",
+        "p18_c1 has low source-text match (0.21).",
+        "p46_c1 has low source-text match (0.08).",
+        "p47_c1 has low source-text match (0.42).",
+        "p239_c1 has low source-text match (0.18).",
+        "p246_c1 has low source-text match (0.30)."
+      ],
+      "stats": {
+        "source_page_count": 422,
+        "source_non_empty_page_count": 419,
+        "source_text_chars": 241372,
+        "referenced_page_count": 407,
+        "unreferenced_text_page_count": 12,
+        "referenced_source_chars": 240523,
+        "referenced_source_chars_ratio": 0.996,
+        "chunk_text_chars": 241178,
+        "chunk_to_source_chars_ratio": 0.999,
+        "chunk_count": 407,
+        "chunk_chars_min": 12,
+        "chunk_chars_avg": 621.1,
+        "chunk_chars_max": 1040,
+        "short_chunk_count": 0,
+        "short_chunk_ratio": 0.0,
+        "source_match_ratio_min": 0.083,
+        "source_match_ratio_avg": 0.97,
+        "source_match_ratio_max": 1.0
+      }
+    }
+  },
+  "vectorstores": {
+    "openai_text_embedding_3_small": "vectorstores/faiss_openai_text_embedding_3_small"
+  },
+  "embedding": {
+    "status": "embedded",
+    "model": "text-embedding-3-small",
+    "vectorstore_key": "openai_text_embedding_3_small",
+    "vectorstore_path": "vectorstores/faiss_openai_text_embedding_3_small",
+    "chunk_count": 407,
+    "evaluation": {
+      "top_k": 5,
+      "good_questions_count": 10,
+      "bad_questions_count": 10,
+      "good_avg_top_k_distance": 1.115575,
+      "bad_avg_top_k_distance": 1.672973,
+      "good_questions": [
+        "感冒咳嗽時，中醫會如何根據症狀判斷調理方向？",
+        "長期失眠、容易疲倦，可以從哪些中醫角度分析原因？",
+        "胃脹、食慾差、飯後不舒服時，中醫通常會觀察哪些線索？",
+        "月經不規律或經痛時，中醫會如何辨證與調理？",
+        "腰膝痠軟、手腳冰冷時，中醫可能會考慮哪些體質問題？",
+        "反覆皮膚濕疹或搔癢時，中醫會如何區分可能原因？",
+        "頭痛或肩頸痠痛時，中醫會如何判斷相關因素？",
+        "過敏性鼻炎反覆發作時，中醫可能如何分析與處理？",
+        "中醫調理慢性疲勞時，通常會注意哪些生活與體質因素？",
+        "服用中藥或接受針灸前，病人應該提供哪些症狀與病史資訊？"
+      ],
+      "bad_questions": [
+        "現任美國總統是誰？",
+        "台積電股價今天多少？",
+        "如何用 Python 讀取 CSV 檔案？",
+        "台北明天的天氣預報是什麼？",
+        "NBA 總冠軍賽最新比分是多少？",
+        "如何規劃東京五天四夜自由行？",
+        "披薩麵團需要發酵多久？",
+        "第二次世界大戰是哪一年結束的？",
+        "如何計算複利投資報酬率？",
+        "哪一款筆電適合剪輯 4K 影片？"
+      ]
+    },
+    "updated_at": "2026-06-10T12:23:37"
+  }
+}

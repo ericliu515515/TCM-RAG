@@ -1,0 +1,38 @@
+{
+  "passed": false,
+  "errors": [
+    "Chunk 15 is too long (2214 chars).",
+    "Chunk 31 is too long (2370 chars).",
+    "Chunk 52 is too long (2599 chars).",
+    "Chunk 53 is too long (2826 chars).",
+    "Chunk 78 is too long (2225 chars).",
+    "Chunk 112 is too long (2316 chars).",
+    "Chunk 114 is too long (2259 chars).",
+    "Chunk 116 is too long (2320 chars).",
+    "Chunk 118 is too long (2350 chars).",
+    "Chunk 120 is too long (2335 chars)."
+  ],
+  "warnings": [
+    "p5_c1 has low source-text match (0.42)."
+  ],
+  "stats": {
+    "source_page_count": 104,
+    "source_non_empty_page_count": 101,
+    "source_text_chars": 124384,
+    "referenced_page_count": 96,
+    "unreferenced_text_page_count": 5,
+    "referenced_source_chars": 113852,
+    "referenced_source_chars_ratio": 0.915,
+    "chunk_text_chars": 97691,
+    "chunk_to_source_chars_ratio": 0.785,
+    "chunk_count": 116,
+    "chunk_chars_min": 18,
+    "chunk_chars_avg": 932.6,
+    "chunk_chars_max": 2134,
+    "short_chunk_count": 0,
+    "short_chunk_ratio": 0.0,
+    "source_match_ratio_min": 0.417,
+    "source_match_ratio_avg": 0.979,
+    "source_match_ratio_max": 1.0
+  }
+}

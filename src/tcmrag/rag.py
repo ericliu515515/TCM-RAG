@@ -162,7 +162,7 @@ def get_chain():
 
 非常重要的引用規則：
 1. Context 中每個 Source 都會提供一個 Markdown citation hyperlink，例如：
-   [TCM Basic Theory p.140](https://example.com)
+   [來源書名 p.140](source://source_id#page=140)
 2. 你引用資料時，必須直接複製 Context 中提供的完整 Markdown hyperlink。
 3. 不可以只寫純文字 citation，例如「TCM Basic Theory p.140」。
 4. 如果你想寫「TCM Basic Theory p.140」，必須改成 Context 中對應的 Markdown hyperlink 格式：

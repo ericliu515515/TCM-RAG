@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "errors": [],
+  "warnings": [
+    "p10_c1 has low source-text match (0.00).",
+    "p11_c1 has low source-text match (0.00).",
+    "p18_c1 has low source-text match (0.00).",
+    "p22_c6 has low source-text match (0.42).",
+    "p23_c4 has low source-text match (0.42).",
+    "p24_c3 has low source-text match (0.33).",
+    "p24_c6 has low source-text match (0.38).",
+    "p26_c6 has low source-text match (0.42).",
+    "p36_c1 has low source-text match (0.00).",
+    "p64_c1 has low source-text match (0.00).",
+    "p86_c1 has low source-text match (0.00).",
+    "p152_c1 has low source-text match (0.00).",
+    "Some chunks are very short, but still within the allowed limit (29 / 291 under 10 chars)."
+  ],
+  "stats": {
+    "source_page_count": 178,
+    "source_non_empty_page_count": 173,
+    "source_text_chars": 106241,
+    "referenced_page_count": 173,
+    "unreferenced_text_page_count": 0,
+    "referenced_source_chars": 106241,
+    "referenced_source_chars_ratio": 1.0,
+    "chunk_text_chars": 104160,
+    "chunk_to_source_chars_ratio": 0.98,
+    "chunk_count": 291,
+    "chunk_chars_min": 3,
+    "chunk_chars_avg": 391.2,
+    "chunk_chars_max": 1421,
+    "short_chunk_count": 29,
+    "short_chunk_ratio": 0.1,
+    "source_match_ratio_min": 0.0,
+    "source_match_ratio_avg": 0.923,
+    "source_match_ratio_max": 1.0
+  }
+}

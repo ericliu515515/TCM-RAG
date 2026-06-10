@@ -1,0 +1,39 @@
+Deterministic validation warnings:
+Chunk 1 is too long (8418 chars).
+Chunk 3 is too long (5220 chars).
+Chunk 4 is too long (5359 chars).
+Chunk 5 is too long (10666 chars).
+Chunk 6 is too long (4230 chars).
+Chunk 7 is too long (4855 chars).
+Chunk 8 is too long (3060 chars).
+Chunk 9 is too long (14900 chars).
+Chunk 10 is too long (2456 chars).
+Chunk 11 is too long (2381 chars).
+Chunk 12 is too long (4600 chars).
+Chunk 14 is too long (2611 chars).
+Chunk 15 is too long (2589 chars).
+Chunk 16 is too long (5463 chars).
+Chunk 17 is too long (4455 chars).
+Chunk 19 is too long (2213 chars).
+Chunk 20 is too long (2946 chars).
+
+Deterministic validation notes:
+Chunks reference pages covering only 0.06 of extracted source text.
+Chunk text is much shorter than extracted source text (0.05 chunk/source char ratio).
+
+Feedback problems:
+Multiple chunks are excessively long, with several exceeding 5000 characters, which can lead to difficulties in retrieval.
+Only a small portion of the source text is represented in the chunks, with a low referenced source characters ratio.
+The average chunk size is too large, and there are no short chunks, indicating a lack of appropriate segmentation.
+The separation score suggests that the current chunking does not effectively distinguish between relevant and irrelevant questions.
+
+Feedback reasoning summary:
+The chunking process has significant issues with chunk size and coverage. Many chunks exceed the recommended length, which can hinder retrieval quality. Additionally, the referenced text only covers a small fraction of the source material, indicating poor extraction and chunking strategy.
+
+Chunker feedback:
+Revise the chunking strategy to ensure that chunks are smaller and more coherent, ideally mapping to single paragraphs or tightly connected ideas. Aim for a better balance between chunk size and coverage of the source material to improve retrieval effectiveness.
+
+Retrieval separation:
+good_avg_top_k_distance=1.305659
+bad_avg_top_k_distance=1.771270
+separation_score=0.465611

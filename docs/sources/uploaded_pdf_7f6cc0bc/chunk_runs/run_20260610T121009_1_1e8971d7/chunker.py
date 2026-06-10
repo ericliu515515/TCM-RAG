@@ -1,0 +1,58 @@
+import re
+from typing import List, Dict
+
+def chunk_pages(pages: List[Dict[str, str]]) -> Dict[str, List[Dict[str, List[int]]]]:
+    repeated_noise_candidates = {
+        "療", "實", "針", "指", "灸", "床", "治", "引", "臨", "證", "篇", "第", "統", "系", "神", "經", "四", "一", "十"
+    }
+    
+    # Step 1: Normalize and clean text
+    cleaned_pages = []
+    for page in pages:
+        pdf_page = page['pdf_page']
+        text = page['text'].strip()
+        # Remove repeated noise lines
+        lines = text.splitlines()
+        unique_lines = []
+        for line in lines:
+            if line.strip() and not any(noise in line for noise in repeated_noise_candidates):
+                unique_lines.append(line.strip())
+        cleaned_text = "\n".join(unique_lines)
+        cleaned_pages.append((pdf_page, cleaned_text))
+    
+    # Step 2: Split by paragraph boundaries
+    chunks = []
+    current_chunk = []
+    current_pages = set()
+    
+    for pdf_page, text in cleaned_pages:
+        paragraphs = re.split(r'\n\s*\n+', text)  # Split by double newlines
+        for paragraph in paragraphs:
+            paragraph = paragraph.strip()
+            if paragraph:
+                if len(current_chunk) > 0 and (len(paragraph) < 10 and len(current_chunk) < 2):
+                    # Attach short heading to the next paragraph
+                    current_chunk[-1] += " " + paragraph
+                else:
+                    if current_chunk:
+                        chunks.append({
+                            "text": "\n".join(current_chunk),
+                            "pdf_pages": list(current_pages)
+                        })
+                    current_chunk = [paragraph]
+                    current_pages = {pdf_page}
+    
+    # Final chunk
+    if current_chunk:
+        chunks.append({
+            "text": "\n".join(current_chunk),
+            "pdf_pages": list(current_pages)
+        })
+    
+    # Step 3: Remove empty chunks and noise-only chunks
+    final_chunks = []
+    for chunk in chunks:
+        if chunk['text'].strip():
+            final_chunks.append(chunk)
+    
+    return {"chunks": final_chunks}

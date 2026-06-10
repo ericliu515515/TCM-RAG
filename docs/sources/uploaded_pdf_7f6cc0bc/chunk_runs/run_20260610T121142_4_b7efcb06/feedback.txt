@@ -1,0 +1,27 @@
+Deterministic validation warnings:
+Chunk 12 is too long (2214 chars).
+Chunk 28 is too long (2364 chars).
+Chunk 47 is too long (2593 chars).
+Chunk 48 is too long (2820 chars).
+Chunk 73 is too long (2225 chars).
+Chunk 94 is too long (2344 chars).
+Chunk 95 is too long (2287 chars).
+Chunk 96 is too long (2348 chars).
+Chunk 97 is too long (2378 chars).
+Chunk 98 is too long (2363 chars).
+
+Feedback problems:
+Multiple chunks exceed the maximum character limit, leading to potential loss of context and coherence.
+The average chunk size is too large, which may affect retrieval efficiency.
+No short chunks are present, indicating a lack of smaller, easily retrievable units.
+
+Feedback reasoning summary:
+The chunking process has produced several overly long chunks that exceed the recommended character limit, which can hinder retrieval quality. Additionally, there are no short chunks, but the average chunk size is still too large, indicating a need for better paragraph separation. The retrieval evaluation shows a separation score that suggests the current chunking may not effectively distinguish relevant from irrelevant questions.
+
+Chunker feedback:
+Reduce the size of chunks to ensure they are under the character limit and better reflect individual paragraphs or coherent sections. Ensure that chunks do not cut off thoughts or definitions mid-way, and maintain clear boundaries to improve retrieval quality.
+
+Retrieval separation:
+good_avg_top_k_distance=1.184611
+bad_avg_top_k_distance=1.670361
+separation_score=0.485750

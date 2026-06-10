@@ -1,0 +1,30 @@
+{
+  "passed": false,
+  "errors": [
+    "Chunk 1 is too long (131368 chars)."
+  ],
+  "warnings": [
+    "Chunks reference pages covering only 0.00 of extracted source text.",
+    "Chunk text is much shorter than extracted source text (0.00 chunk/source char ratio)."
+  ],
+  "stats": {
+    "source_page_count": 104,
+    "source_non_empty_page_count": 101,
+    "source_text_chars": 124384,
+    "referenced_page_count": 1,
+    "unreferenced_text_page_count": 100,
+    "referenced_source_chars": 503,
+    "referenced_source_chars_ratio": 0.004,
+    "chunk_text_chars": 425,
+    "chunk_to_source_chars_ratio": 0.003,
+    "chunk_count": 1,
+    "chunk_chars_min": 468,
+    "chunk_chars_avg": 468.0,
+    "chunk_chars_max": 468,
+    "short_chunk_count": 0,
+    "short_chunk_ratio": 0.0,
+    "source_match_ratio_min": 0.833,
+    "source_match_ratio_avg": 0.833,
+    "source_match_ratio_max": 0.833
+  }
+}

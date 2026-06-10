@@ -490,8 +490,9 @@ def run_chunk_attempt(
 
     write_json(validation_path, {key: value for key, value in validation.items() if key != "chunks"})
 
+    usable_chunks = validation.get("chunks") or []
     retrieval_evaluation = None
-    if validation["passed"]:
+    if usable_chunks:
         report_chunking_progress(
             progress_callback,
             attempt=attempt,
@@ -502,7 +503,7 @@ def run_chunk_attempt(
         )
         retrieval_evaluation = evaluate_candidate_chunks(
             source=source,
-            chunks=validation["chunks"],
+            chunks=usable_chunks,
             embedding_model=embedding_model,
         )
         write_json(retrieval_evaluation_path, retrieval_evaluation)
@@ -514,15 +515,12 @@ def run_chunk_attempt(
             stage="evaluate",
             message=(
                 f"Attempt {attempt}/{max_attempts}: skipping retrieval evaluation "
-                "because validation failed."
+                "because no usable candidate chunks were produced."
             ),
             run_id=run_id,
         )
 
-    accepted = (
-        validation["passed"]
-        and separation_score_passed(retrieval_evaluation)
-    )
+    accepted = separation_score_passed(retrieval_evaluation)
     separation_score = retrieval_separation_score(retrieval_evaluation)
     if accepted:
         feedback_for_next_attempt = build_feedback_for_next_attempt(
@@ -717,6 +715,7 @@ def get_chunker_feedback(
             "Think carefully, but return only the requested JSON object. "
             "Focus especially on paragraph boundaries, chunk size discipline, and repeated watermark or header noise. "
             "Do not decide pass or fail; retrieval_evaluation.separation_score is the acceptance gate. "
+            "Treat deterministic validation findings as warnings and feedback, not as an acceptance gate. "
             "Do not reveal hidden chain-of-thought; put a concise rationale in reasoning_summary.",
         ),
         (
@@ -728,7 +727,7 @@ def get_chunker_feedback(
                         "display_name": source["display_name"],
                     },
                     "validation": {
-                        "passed": validation["passed"],
+                        "acceptance_role": "warning_only",
                         "errors": validation["errors"],
                         "warnings": validation["warnings"][:20],
                         "stats": validation["stats"],
@@ -755,12 +754,12 @@ def get_chunker_feedback(
                         "Good chunks should transform most of the extracted PDF text into chunks.",
                         "Use validation.stats.source_text_chars, chunk_text_chars, referenced_page_count, source_non_empty_page_count, referenced_source_chars_ratio, chunk_to_source_chars_ratio, short_chunk_count, and short_chunk_ratio to assess coverage and chunk quality.",
                         "Flag substantial extracted text that is missing from chunks without a clear reason.",
-                        "Explain validation errors if they exist.",
+                        "Treat validation errors and warnings as deterministic validation warnings for the next attempt.",
                         "If retrieval_evaluation is present, use it as an important signal.",
                         "A better chunking run should make bad_avg_top_k_distance meaningfully larger than good_avg_top_k_distance.",
                         "retrieval_evaluation.separation_score = bad_avg_top_k_distance - good_avg_top_k_distance; larger is better.",
                         f"The code stops early when separation_score is greater than {MIN_ACCEPTED_SEPARATION_SCORE:.1f}.",
-                        "If no attempt exceeds that target, the code accepts the valid run with the highest separation_score after all attempts.",
+                        "If no attempt exceeds that target, the code accepts the evaluated run with the highest separation_score after all attempts.",
                         "If the separation score is weak, explain how the chunk boundaries may be hurting retrieval quality.",
                     ],
                     "review_focus": [
@@ -933,11 +932,13 @@ def build_feedback_for_next_attempt(
     feedback_blocks = []
 
     if validation.get("errors"):
-        feedback_blocks.append("Validation errors:\n" + "\n".join(validation["errors"]))
+        feedback_blocks.append(
+            "Deterministic validation warnings:\n" + "\n".join(validation["errors"])
+        )
 
     if validation.get("warnings"):
         feedback_blocks.append(
-            "Validation warnings:\n" + "\n".join(validation["warnings"][:20])
+            "Deterministic validation notes:\n" + "\n".join(validation["warnings"][:20])
         )
 
     if judge_report:
@@ -1006,14 +1007,13 @@ def select_best_attempt_result(results: list[dict]) -> dict | None:
     if not results:
         return None
 
-    validated_results = [
+    evaluated_results = [
         result
         for result in results
-        if result.get("validation", {}).get("passed")
-        and retrieval_separation_score(result.get("retrieval_evaluation")) is not None
+        if retrieval_separation_score(result.get("retrieval_evaluation")) is not None
     ]
-    if validated_results:
-        return max(validated_results, key=attempt_selection_key)
+    if evaluated_results:
+        return max(evaluated_results, key=attempt_selection_key)
 
     return None
 

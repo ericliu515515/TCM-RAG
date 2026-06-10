@@ -24,32 +24,49 @@ section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
 }
 
 div[data-testid="stForm"] {
+    --chat-control-height: 3.25rem;
     padding: 0.75rem 0 0.25rem 0;
     margin-top: 1.25rem;
     border: 0 !important;
     box-shadow: none !important;
 }
 
-div[data-testid="stForm"] textarea {
-    min-height: 46px !important;
-    max-height: 76px !important;
-    padding: 0.7rem 1rem !important;
+div[data-testid="stForm"] [data-testid="stTextInput"],
+div[data-testid="stForm"] [data-testid="stTextInput"] > div,
+div[data-testid="stForm"] [data-testid="stTextInput"] div[data-baseweb="input"] {
+    height: var(--chat-control-height) !important;
+    min-height: var(--chat-control-height) !important;
+    max-height: var(--chat-control-height) !important;
+}
+
+div[data-testid="stForm"] [data-testid="InputInstructions"] {
+    display: none !important;
+}
+
+div[data-testid="stForm"] textarea,
+div[data-testid="stForm"] input[type="text"] {
+    box-sizing: border-box !important;
+    height: var(--chat-control-height) !important;
+    line-height: var(--chat-control-height) !important;
+    min-height: var(--chat-control-height) !important;
+    max-height: var(--chat-control-height) !important;
+    padding: 0 1rem !important;
     border-radius: 1.35rem !important;
     resize: none;
 }
 
 div[data-testid="stForm"] button {
     align-items: center;
-    border-radius: 50%;
+    border-radius: 0.5rem;
     display: flex;
-    height: 46px;
+    height: var(--chat-control-height) !important;
     justify-content: center;
-    max-height: 46px;
-    max-width: 46px;
-    min-height: 46px;
-    min-width: 46px;
-    padding: 0;
-    width: 46px;
+    max-height: var(--chat-control-height) !important;
+    max-width: var(--chat-control-height) !important;
+    min-height: var(--chat-control-height) !important;
+    min-width: var(--chat-control-height) !important;
+    padding: 0 !important;
+    width: var(--chat-control-height) !important;
 }
 
 div[data-testid="stForm"] [data-testid="stFormSubmitButton"] {
@@ -66,7 +83,7 @@ div[data-testid="stForm"] [data-testid="stVerticalBlock"] {
 }
 
 div[data-testid="stForm"] [data-testid="stHorizontalBlock"] {
-    align-items: end;
+    align-items: center;
     gap: 0.45rem;
 }
 

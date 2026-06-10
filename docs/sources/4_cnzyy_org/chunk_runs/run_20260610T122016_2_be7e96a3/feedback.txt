@@ -1,0 +1,28 @@
+Deterministic validation notes:
+p75_c5 has low source-text match (0.36).
+p75_c7 has low source-text match (0.36).
+p75_c9 has low source-text match (0.36).
+p88_c12 has low source-text match (0.12).
+p130_c15 has low source-text match (0.36).
+p162_c1 has low source-text match (0.17).
+p173_c12 has low source-text match (0.17).
+p175_c21 has low source-text match (0.36).
+p187_c8 has low source-text match (0.36).
+p197_c12 has low source-text match (0.22).
+p398_c4 has low source-text match (0.33).
+p416_c7 has low source-text match (0.36).
+
+Feedback problems:
+Multiple chunks exhibit low source-text match ratios, indicating potential misalignment with the original text.
+The separation score suggests that the chunking may not be effectively distinguishing between relevant and irrelevant questions.
+
+Feedback reasoning summary:
+The chunking process has resulted in a significant number of low source-text match warnings, indicating potential issues with coherence and relevance. The average chunk size is acceptable, but the presence of low match ratios suggests that some chunks may not effectively represent the source material. The separation score indicates that retrieval quality could be improved, as the distance between good and bad questions is not sufficiently large.
+
+Chunker feedback:
+Consider revising the chunking strategy to ensure that chunks better represent coherent units of meaning from the source text. Pay particular attention to maintaining paragraph integrity and avoiding the inclusion of unrelated content within the same chunk.
+
+Retrieval separation:
+good_avg_top_k_distance=1.010624
+bad_avg_top_k_distance=1.528614
+separation_score=0.517990

@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "errors": [],
+  "warnings": [
+    "p13_c1 has low source-text match (0.21).",
+    "p18_c1 has low source-text match (0.21).",
+    "p46_c1 has low source-text match (0.08).",
+    "p47_c1 has low source-text match (0.42).",
+    "p239_c1 has low source-text match (0.18).",
+    "p246_c1 has low source-text match (0.30)."
+  ],
+  "stats": {
+    "source_page_count": 422,
+    "source_non_empty_page_count": 419,
+    "source_text_chars": 241372,
+    "referenced_page_count": 407,
+    "unreferenced_text_page_count": 12,
+    "referenced_source_chars": 240523,
+    "referenced_source_chars_ratio": 0.996,
+    "chunk_text_chars": 241178,
+    "chunk_to_source_chars_ratio": 0.999,
+    "chunk_count": 407,
+    "chunk_chars_min": 12,
+    "chunk_chars_avg": 621.1,
+    "chunk_chars_max": 1040,
+    "short_chunk_count": 0,
+    "short_chunk_ratio": 0.0,
+    "source_match_ratio_min": 0.083,
+    "source_match_ratio_avg": 0.97,
+    "source_match_ratio_max": 1.0
+  }
+}

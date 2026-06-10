@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "errors": [],
+  "warnings": [
+    "Chunks reference pages covering only 0.10 of extracted source text.",
+    "Chunk text is much shorter than extracted source text (0.10 chunk/source char ratio)."
+  ],
+  "stats": {
+    "source_page_count": 99,
+    "source_non_empty_page_count": 98,
+    "source_text_chars": 81327,
+    "referenced_page_count": 15,
+    "unreferenced_text_page_count": 83,
+    "referenced_source_chars": 8213,
+    "referenced_source_chars_ratio": 0.101,
+    "chunk_text_chars": 8213,
+    "chunk_to_source_chars_ratio": 0.101,
+    "chunk_count": 15,
+    "chunk_chars_min": 142,
+    "chunk_chars_avg": 601.5,
+    "chunk_chars_max": 2024,
+    "short_chunk_count": 0,
+    "short_chunk_ratio": 0.0,
+    "source_match_ratio_min": 1.0,
+    "source_match_ratio_avg": 1.0,
+    "source_match_ratio_max": 1.0
+  }
+}
