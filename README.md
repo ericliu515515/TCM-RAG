@@ -81,7 +81,7 @@ Start the app:
 .venv/bin/streamlit run app.py
 ```
 
-Then open the local Streamlit URL, usually `http://localhost:8501`.
+Then open the local Streamlit URL shown in the terminal.
 
 ## Limitations
 
