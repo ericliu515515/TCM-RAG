@@ -1,3 +1,7 @@
 .DS_Store
 docs/.DS_Store
 docs/sources/tcm_basic_theory/中医基础理论（新世纪第4版）cnzyy.org.pdf
+
+.venv/
+__pycache__/
+*.py[cod]

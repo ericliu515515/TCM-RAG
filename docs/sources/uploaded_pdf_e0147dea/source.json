@@ -1,0 +1,105 @@
+{
+  "id": "uploaded_pdf_e0147dea",
+  "display_name": "中醫傷科實證臨床治療指引",
+  "original_filename": "中醫傷科實證臨床治療指引.pdf",
+  "chunks_path": "chunks.jsonl",
+  "source_type": "uploaded_pdf",
+  "file_sha256": "670dc832ede4289209be76df1db84046d455477824a1611c1e2751e6e049d0cc",
+  "created_at": "2026-06-10T11:35:33",
+  "pdf_extraction": {
+    "status": "extracted",
+    "pages_path": "pages.json",
+    "page_count": 178,
+    "non_empty_page_count": 173,
+    "error": "",
+    "updated_at": "2026-06-10T11:35:42"
+  },
+  "chunking": {
+    "status": "accepted",
+    "latest_run_id": "run_20260610T113721_7_866995a0",
+    "attempt": 7,
+    "max_attempts": 7,
+    "updated_at": "2026-06-10T11:37:37",
+    "forced_acceptance": false,
+    "accepted_reason": "highest_separation_score_fallback",
+    "judge_report": {
+      "reasoning_summary": "The chunking process has produced a mix of quality chunks, with some maintaining coherence and others suffering from low source-text match and potential paragraph boundary issues. The presence of short chunks is noted, but they remain within acceptable limits. The separation score indicates that retrieval quality could be improved, particularly in distinguishing relevant from irrelevant questions.",
+      "problems": [
+        "Several chunks exhibit low source-text match, indicating potential issues with coherence and relevance.",
+        "Some chunks are too short, although they are within the allowed limit.",
+        "The separation score suggests that the current chunking may not effectively distinguish between good and bad retrieval questions."
+      ],
+      "feedback_for_chunker": "Focus on improving the coherence of chunks by ensuring they align more closely with paragraph boundaries and maintain relevant context. Consider revising chunks with low source-text match to enhance retrieval quality."
+    },
+    "retrieval_evaluation": {
+      "top_k": 5,
+      "good_questions_count": 10,
+      "bad_questions_count": 10,
+      "good_avg_top_k_distance": 1.359957,
+      "bad_avg_top_k_distance": 1.643174,
+      "good_questions": [
+        "中醫如何理解陰陽失衡造成的疾病？",
+        "脾胃在中醫理論中負責哪些生理功能？",
+        "什麼是氣血津液，彼此之間有什麼關係？",
+        "中醫所說的六淫包含哪些外感病因？",
+        "肝鬱氣滯在臨床上可能出現哪些表現？",
+        "腎精不足會如何影響人體生長與發育？",
+        "飲食不節為什麼會損傷脾胃？",
+        "望聞問切四診分別觀察哪些內容？",
+        "痰飲在中醫病因病機中如何形成？",
+        "寒熱虛實如何用來辨別證候？"
+      ],
+      "bad_questions": [
+        "現任美國總統是誰？",
+        "台積電股價今天多少？",
+        "如何用 Python 讀取 CSV 檔案？",
+        "台北明天的天氣預報是什麼？",
+        "NBA 總冠軍賽最新比分是多少？",
+        "如何規劃東京五天四夜自由行？",
+        "披薩麵團需要發酵多久？",
+        "第二次世界大戰是哪一年結束的？",
+        "如何計算複利投資報酬率？",
+        "哪一款筆電適合剪輯 4K 影片？"
+      ],
+      "separation_score": 0.283217
+    },
+    "validation": {
+      "passed": true,
+      "errors": [],
+      "warnings": [
+        "p10_c1 has low source-text match (0.00).",
+        "p18_c1 has low source-text match (0.00).",
+        "p22_c1 has low source-text match (0.25).",
+        "p23_c1 has low source-text match (0.21).",
+        "p24_c1 has low source-text match (0.25).",
+        "p25_c1 has low source-text match (0.17).",
+        "p26_c1 has low source-text match (0.33).",
+        "p36_c1 has low source-text match (0.00).",
+        "p64_c1 has low source-text match (0.00).",
+        "p86_c1 has low source-text match (0.00).",
+        "p152_c1 has low source-text match (0.00).",
+        "Some chunks are very short, but still within the allowed limit (5 / 173 under 10 chars)."
+      ],
+      "stats": {
+        "source_page_count": 178,
+        "source_non_empty_page_count": 173,
+        "source_text_chars": 106241,
+        "referenced_page_count": 173,
+        "unreferenced_text_page_count": 0,
+        "referenced_source_chars": 106241,
+        "referenced_source_chars_ratio": 1.0,
+        "chunk_text_chars": 104160,
+        "chunk_to_source_chars_ratio": 0.98,
+        "chunk_count": 173,
+        "chunk_chars_min": 5,
+        "chunk_chars_avg": 658.7,
+        "chunk_chars_max": 1421,
+        "short_chunk_count": 5,
+        "short_chunk_ratio": 0.029,
+        "source_match_ratio_min": 0.0,
+        "source_match_ratio_avg": 0.91,
+        "source_match_ratio_max": 1.0
+      }
+    }
+  }
+}

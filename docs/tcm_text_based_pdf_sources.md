@@ -2,7 +2,7 @@
 
 Checked on 2026-06-09 with `pdfinfo` and `pdftotext -f 1 -l 5`. `chars_first5` is the number of characters extracted from the first five pages; nonzero/high values indicate the PDF has a usable text layer rather than being image-only.
 
-## Best first sources for TCMagent
+## Best first sources for tcmrag
 
 | Priority | Source | Direct PDF | Why use it first |
 | --- | --- | --- | --- |
