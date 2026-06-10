@@ -2,6 +2,8 @@
 
 > **Important:** This project is an educational demo and is not for medical advice.
 
+![TCM Citation RAG demo](asset/gif.gif)
+
 One of the main challenges of Traditional Chinese Medicine (TCM) chatbots is hallucination. To address this, our application uses Retrieval-Augmented Generation (RAG), ensuring that responses are grounded in reliable reference materials.
 
 Since TCM answers can vary across different schools of thought, we also provide a "You Decide the Truth" feature. Users can upload trusted text-based PDF documents to build their own RAG knowledge base. An AI tool then generates a Python script to convert these PDFs into JSONL format, allowing the chatbot to answer questions based on the user's chosen sources.
