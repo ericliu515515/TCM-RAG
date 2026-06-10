@@ -73,6 +73,9 @@ from tcmrag.web.documents import (  # noqa: E402
 from tcmrag.web.styles import apply_global_styles  # noqa: E402
 
 
+MISSING_OPENAI_API_KEY_MESSAGE = "OPENAI_API_KEY is not set"
+
+
 ensure_app_environment()
 
 
@@ -127,6 +130,34 @@ if "pdf_upload_widget_nonce" not in st.session_state:
 
 if "background_job_ids" not in st.session_state:
     st.session_state.background_job_ids = []
+
+
+def openai_api_key_is_set() -> bool:
+    return bool(str(os.getenv("OPENAI_API_KEY") or "").strip())
+
+
+def is_missing_openai_api_key_error(error_text: str) -> bool:
+    normalized = str(error_text or "").lower()
+    key_reference_found = (
+        "openai_api_key" in normalized
+        or "api_key" in normalized
+        or "api key" in normalized
+    )
+    missing_key_signal_found = (
+        "not set" in normalized
+        or "missing" in normalized
+        or "required" in normalized
+        or "must be set" in normalized
+    )
+    return key_reference_found and missing_key_signal_found
+
+
+def model_error_message(error_text: str, fallback_message: str) -> str:
+    if is_missing_openai_api_key_error(error_text):
+        return MISSING_OPENAI_API_KEY_MESSAGE
+
+    return fallback_message
+
 
 def request_top_panel(panel_id: str) -> None:
     st.session_state.active_top_panel = panel_id
@@ -347,8 +378,8 @@ def submit_document_processing_job(source: dict) -> str:
         return source_record
 
     def worker(source_record: dict, progress_callback=None):
-        if not os.getenv("OPENAI_API_KEY"):
-            raise ValueError("OPENAI_API_KEY is required to process documents.")
+        if not openai_api_key_is_set():
+            raise ValueError(MISSING_OPENAI_API_KEY_MESSAGE)
 
         source_id = source_record["id"]
         report_pipeline_progress(
@@ -482,7 +513,7 @@ def apply_completed_chat_job(job: dict[str, Any]) -> None:
         error_text = job_error_message(job)
         assistant_message = {
             "role": "assistant",
-            "content": "The RAG pipeline failed to run.",
+            "content": model_error_message(error_text, "The RAG pipeline failed to run."),
             "job_error": error_text,
         }
 
@@ -588,10 +619,11 @@ def apply_completed_source_embedding_job(job: dict[str, Any]) -> None:
         pass
 
     if str(job.get("status") or "") != "completed":
+        error_text = job_error_message(job)
         st.session_state.chunking_notice = {
             "source_id": source_id,
             "kind": "error",
-            "message": f"Embedding failed: {job_error_message(job)}",
+            "message": model_error_message(error_text, f"Embedding failed: {error_text}"),
         }
         return
 
@@ -620,10 +652,11 @@ def apply_completed_combined_embedding_job(job: dict[str, Any]) -> None:
         pass
 
     if str(job.get("status") or "") != "completed":
+        error_text = job_error_message(job)
         st.session_state.chunking_notice = {
             "source_id": notice_source_id,
             "kind": "error",
-            "message": f"Combined embedding failed: {job_error_message(job)}",
+            "message": model_error_message(error_text, f"Combined embedding failed: {error_text}"),
         }
         return
 
@@ -651,10 +684,11 @@ def apply_completed_document_processing_job(job: dict[str, Any]) -> None:
         pass
 
     if str(job.get("status") or "") != "completed":
+        error_text = job_error_message(job)
         st.session_state.chunking_notice = {
             "source_id": source_id,
             "kind": "error",
-            "message": f"Document processing failed: {job_error_message(job)}",
+            "message": model_error_message(error_text, f"Document processing failed: {error_text}"),
         }
         return
 
@@ -700,7 +734,7 @@ def apply_completed_delete_vectorstore_sync_job(job: dict[str, Any]) -> None:
     elif result == "cleared_no_key":
         message = (
             "Uploaded document deleted. Combined vectorstore was cleared because "
-            "rebuilding it requires OPENAI_API_KEY."
+            f"{MISSING_OPENAI_API_KEY_MESSAGE}."
         )
     else:
         message = "Uploaded document deleted."
@@ -1054,7 +1088,7 @@ def sync_combined_vectorstore_after_document_delete(deleted_source: dict) -> str
     except Exception:
         clear_rag_cache = None
 
-    if not remaining_sources or not os.getenv("OPENAI_API_KEY"):
+    if not remaining_sources or not openai_api_key_is_set():
         clear_combined_vectorstore()
         if clear_rag_cache is not None:
             clear_rag_cache()
@@ -1388,11 +1422,11 @@ def render_combined_embedding_control(sources: list[dict], notice_source_id: str
         help="Build one FAISS vectorstore from all sources that have chunks.",
         use_container_width=True,
     ):
-        if not os.getenv("OPENAI_API_KEY"):
+        if not openai_api_key_is_set():
             st.session_state.chunking_notice = {
                 "source_id": notice_source_id,
                 "kind": "error",
-                "message": "OPENAI_API_KEY is required to build the combined vectorstore.",
+                "message": MISSING_OPENAI_API_KEY_MESSAGE,
             }
             st.rerun()
 
@@ -1436,14 +1470,11 @@ def render_document_processing_control(source: dict, pdf_path: Path | None) -> N
             }
             st.rerun()
 
-        if not os.getenv("OPENAI_API_KEY"):
+        if not openai_api_key_is_set():
             st.session_state.chunking_notice = {
                 "source_id": source["id"],
                 "kind": "error",
-                "message": (
-                    "OPENAI_API_KEY is required to extract, chunk, embed, "
-                    "and rebuild the combined vectorstore."
-                ),
+                "message": MISSING_OPENAI_API_KEY_MESSAGE,
             }
             st.rerun()
 
@@ -1824,9 +1855,18 @@ def start_new_chat() -> None:
     st.rerun()
 
 
+def render_openai_api_key_status() -> None:
+    if openai_api_key_is_set():
+        st.write("OPENAI_API_KEY: `set`")
+        return
+
+    st.error(MISSING_OPENAI_API_KEY_MESSAGE)
+
+
 def render_sidebar() -> None:
     with st.sidebar:
         st.header("Status")
+        render_openai_api_key_status()
         render_active_jobs_panel()
         combined_manifest = load_combined_embedding_manifest()
         if combined_manifest:
@@ -1998,6 +2038,18 @@ def handle_user_question() -> None:
     st.session_state.max_distance = max_distance
     save_app_settings()
 
+    if not openai_api_key_is_set():
+        assistant_message = {
+            "role": "assistant",
+            "content": MISSING_OPENAI_API_KEY_MESSAGE,
+        }
+        with st.chat_message("assistant"):
+            st.markdown(MISSING_OPENAI_API_KEY_MESSAGE)
+
+        st.session_state.messages.append(assistant_message)
+        save_current_chat()
+        st.rerun()
+
     with st.chat_message("assistant"):
         try:
             from tcmrag.rag import (
@@ -2026,7 +2078,7 @@ def handle_user_question() -> None:
             error_text = f"{type(exc).__name__}: {exc}"
             assistant_message = {
                 "role": "assistant",
-                "content": "The RAG pipeline failed to run.",
+                "content": model_error_message(error_text, "The RAG pipeline failed to run."),
                 "job_error": error_text,
             }
             st.error(assistant_message["content"])

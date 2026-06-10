@@ -13,10 +13,24 @@ Since TCM answers can vary across different schools of thought, we also provide 
 - **Chunker script model:** `gpt-4o-mini` by default
   - Generates the Python `chunk_pages(pages)` script that converts extracted PDF
     pages into JSONL chunks.
-  - Can be overridden with the `OPENAI_CHUNKER_MODEL` environment variable.
 - **Response generation model:** `gpt-4o-mini`
   - Generates the final chatbot answer from retrieved source context and
     citation links.
+
+## Estimated API Cost
+
+Using the default models and an approximate exchange rate of USD 1 ~= NTD 32:
+
+- **Uploading and processing a 100-page text-based PDF:** usually less than
+  **NTD 5**.
+  - This includes chunker script generation, chunk quality feedback, chunk
+    embeddings, retrieval evaluation, and rebuilding the combined vectorstore.
+- **Generating one chatbot response:** usually less than **NTD 1**.
+  - This includes retrieval, optional question rewriting for follow-up
+    questions, and one `gpt-4o-mini` response over retrieved source context.
+
+Actual cost depends on extracted text length, number of chunker attempts,
+answer length, exchange rate, and OpenAI pricing at runtime.
 
 ## Architecture
 
@@ -73,3 +87,4 @@ Then open the local Streamlit URL, usually `http://localhost:8501`.
 
 - The app depends on the quality of extracted PDF text. Unusual PDF
   layout can reduce retrieval quality.
+- The app can only read text-based PDF.
