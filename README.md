@@ -61,7 +61,5 @@ Then open the local Streamlit URL, usually `http://localhost:8501`.
 
 - The app depends on the quality of extracted PDF text. Unusual PDF
   layout can reduce retrieval quality.
-- Runtime uploads and generated vectorstores are local app state unless they are
-  intentionally committed or backed by persistent storage.
 
 
