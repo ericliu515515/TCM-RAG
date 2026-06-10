@@ -4,6 +4,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 import streamlit as st
 
@@ -14,16 +15,39 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from tcmagent.ai_chunking import run_ai_chunking  # noqa: E402
-from tcmagent.web.chat_sessions import (  # noqa: E402
+from tcmrag.ai_chunking import (  # noqa: E402
+    MIN_ACCEPTED_SEPARATION_SCORE,
+    extract_pdf_pages_for_source,
+    run_ai_chunking,
+)
+from tcmrag.source_embeddings import (  # noqa: E402
+    clear_combined_vectorstore,
+    combined_manifest_source_ids,
+    load_combined_embedding_manifest,
+    run_combined_embedding_for_sources,
+    run_embedding_for_source,
+)
+from tcmrag.web.background_jobs import (  # noqa: E402
+    discard_background_job,
+    get_background_job_snapshot,
+    get_background_job_snapshots,
+    is_background_job_active,
+    submit_background_job,
+)
+from tcmrag.web.chat_sessions import (  # noqa: E402
     chat_file_path,
     load_chat_sessions,
     read_chat_file,
     save_chat_session,
     session_label,
 )
-from tcmagent.web.config import (  # noqa: E402
-    DEFAULT_VECTORSTORE_LABEL,
+from tcmrag.web.citation_links import (  # noqa: E402
+    CITATION_PAGE_QUERY_PARAM,
+    CITATION_SOURCE_QUERY_PARAM,
+    parse_positive_page,
+    rewrite_markdown_citation_links,
+)
+from tcmrag.web.config import (  # noqa: E402
     MAX_MAX_DISTANCE,
     MIN_MAX_DISTANCE,
     clamp_max_distance,
@@ -31,7 +55,7 @@ from tcmagent.web.config import (  # noqa: E402
     load_app_settings,
     write_app_settings,
 )
-from tcmagent.web.documents import (  # noqa: E402
+from tcmrag.web.documents import (  # noqa: E402
     chunks_window_id,
     delete_document_source,
     format_chunk_texts,
@@ -46,17 +70,10 @@ from tcmagent.web.documents import (  # noqa: E402
     source_for_id,
     source_label,
 )
-from tcmagent.web.styles import apply_global_styles  # noqa: E402
+from tcmrag.web.styles import apply_global_styles  # noqa: E402
 
 
 ensure_app_environment()
-
-
-@st.cache_resource
-def load_ask_tcm():
-    from tcmagent.rag import ask_tcm
-
-    return ask_tcm
 
 
 st.set_page_config(
@@ -102,6 +119,14 @@ if "pending_selected_source_id" not in st.session_state:
 if "chunking_notice" not in st.session_state:
     st.session_state.chunking_notice = None
 
+if "document_notice" not in st.session_state:
+    st.session_state.document_notice = None
+
+if "pdf_upload_widget_nonce" not in st.session_state:
+    st.session_state.pdf_upload_widget_nonce = 0
+
+if "background_job_ids" not in st.session_state:
+    st.session_state.background_job_ids = []
 
 def request_top_panel(panel_id: str) -> None:
     st.session_state.active_top_panel = panel_id
@@ -112,24 +137,462 @@ def request_selected_source(source_id: str | None) -> None:
     st.session_state.pending_selected_source_id = source_id or ""
 
 
+def track_background_job(job_id: str) -> None:
+    job_ids = list(st.session_state.background_job_ids)
+    if job_id not in job_ids:
+        job_ids.append(job_id)
+    st.session_state.background_job_ids = job_ids
+
+
+def untrack_background_job(job_id: str) -> None:
+    st.session_state.background_job_ids = [
+        existing_job_id
+        for existing_job_id in st.session_state.background_job_ids
+        if existing_job_id != job_id
+    ]
+
+
+def session_job_snapshots() -> list[dict[str, Any]]:
+    return get_background_job_snapshots(list(st.session_state.background_job_ids))
+
+
+def active_session_jobs() -> list[dict[str, Any]]:
+    return [
+        job
+        for job in session_job_snapshots()
+        if is_background_job_active(job)
+    ]
+
+
+def source_jobs_in_progress(source_id: str, kinds: set[str] | None = None) -> list[dict[str, Any]]:
+    jobs = []
+    for job in active_session_jobs():
+        if kinds and str(job.get("kind") or "") not in kinds:
+            continue
+        metadata = job.get("metadata") or {}
+        if str(metadata.get("source_id") or "") == source_id:
+            jobs.append(job)
+    return jobs
+
+
+def source_job_in_progress(source_id: str, kinds: set[str] | None = None) -> bool:
+    return bool(source_jobs_in_progress(source_id, kinds))
+
+
+def any_document_job_in_progress() -> bool:
+    document_kinds = {
+        "pdf_extraction",
+        "chunk_generation",
+        "source_embedding",
+        "combined_embedding",
+        "delete_vectorstore_sync",
+    }
+    return any(str(job.get("kind") or "") in document_kinds for job in active_session_jobs())
+
+
+def chat_job_in_progress() -> bool:
+    return any(str(job.get("kind") or "") == "chat_answer" for job in active_session_jobs())
+
+
+def combined_embedding_job_in_progress() -> bool:
+    return any(str(job.get("kind") or "") == "combined_embedding" for job in active_session_jobs())
+
+
+def clamp_job_progress(value: Any) -> float:
+    try:
+        return max(0.0, min(float(value), 1.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def job_error_message(job: dict[str, Any]) -> str:
+    exception_type = str(job.get("exception_type") or "").strip()
+    error = str(job.get("error") or "").strip()
+    if exception_type and error:
+        return f"{exception_type}: {error}"
+    return error or "Unknown job failure."
+
+
+def replace_pending_chat_message(job_id: str, message: dict[str, Any]) -> None:
+    for index, existing in enumerate(st.session_state.messages):
+        if str(existing.get("pending_job_id") or "") == job_id:
+            st.session_state.messages[index] = message
+            return
+
+    st.session_state.messages.append(message)
+
+
+def submit_pdf_extraction_job(source: dict) -> str:
+    def worker(source_record: dict, progress_callback=None):
+        if progress_callback is not None:
+            progress_callback({
+                "progress": 0.1,
+                "message": "Extracting text from PDF.",
+            })
+        return extract_pdf_pages_for_source(source_record)
+
+    return submit_background_job(
+        kind="pdf_extraction",
+        label=f"Extracting PDF for {source['display_name']}",
+        target=worker,
+        args=(source,),
+        metadata={"source_id": source["id"]},
+        progress_kwarg="progress_callback",
+    )
+
+
+def submit_chunk_generation_job(source: dict) -> str:
+    return submit_background_job(
+        kind="chunk_generation",
+        label=f"Generating chunks for {source['display_name']}",
+        target=run_ai_chunking,
+        args=(source,),
+        metadata={"source_id": source["id"]},
+        progress_kwarg="progress_callback",
+    )
+
+
+def submit_source_embedding_job(source: dict) -> str:
+    def worker(source_record: dict, progress_callback=None):
+        if progress_callback is not None:
+            progress_callback({
+                "progress": 0.1,
+                "message": "Embedding chunks and evaluating retrieval distances.",
+            })
+        return run_embedding_for_source(source_record)
+
+    return submit_background_job(
+        kind="source_embedding",
+        label=f"Embedding chunks for {source['display_name']}",
+        target=worker,
+        args=(source,),
+        metadata={"source_id": source["id"]},
+        progress_kwarg="progress_callback",
+    )
+
+
+def submit_combined_embedding_job(sources: list[dict], notice_source_id: str) -> str:
+    def worker(source_records: list[dict], progress_callback=None):
+        if progress_callback is not None:
+            progress_callback({
+                "progress": 0.1,
+                "message": "Building combined vectorstore.",
+            })
+        return run_combined_embedding_for_sources(source_records)
+
+    return submit_background_job(
+        kind="combined_embedding",
+        label="Building combined vectorstore",
+        target=worker,
+        args=(sources,),
+        metadata={"notice_source_id": notice_source_id},
+        progress_kwarg="progress_callback",
+    )
+
+
+def submit_delete_vectorstore_sync_job(deleted_source: dict) -> str:
+    def worker(source_record: dict, progress_callback=None):
+        if progress_callback is not None:
+            progress_callback({
+                "progress": 0.1,
+                "message": "Updating combined vectorstore after deletion.",
+            })
+        return sync_combined_vectorstore_after_document_delete(source_record)
+
+    return submit_background_job(
+        kind="delete_vectorstore_sync",
+        label="Updating combined vectorstore after deletion",
+        target=worker,
+        args=(deleted_source,),
+        progress_kwarg="progress_callback",
+    )
+
+
+def apply_completed_chat_job(job: dict[str, Any]) -> None:
+    if str(job.get("status") or "") == "completed":
+        result = job.get("result") or {}
+        assistant_message = {
+            "role": "assistant",
+            "content": result.get("answer", ""),
+            "sources": result.get("sources", []),
+            "scores": result.get("scores", []),
+            "search_question": result.get("search_question"),
+            "max_distance": result.get("max_distance", clamp_max_distance(st.session_state.max_distance)),
+            "vectorstore_path": result.get("vectorstore_path"),
+        }
+    else:
+        error_text = job_error_message(job)
+        assistant_message = {
+            "role": "assistant",
+            "content": "The RAG pipeline failed to run.",
+            "job_error": error_text,
+        }
+
+    replace_pending_chat_message(str(job["id"]), assistant_message)
+    save_current_chat()
+
+
+def apply_completed_pdf_extraction_job(job: dict[str, Any]) -> None:
+    source_id = str((job.get("metadata") or {}).get("source_id") or "")
+    if str(job.get("status") or "") == "completed":
+        result = job.get("result") or {}
+        if result.get("status") == "extracted":
+            st.session_state.chunking_notice = {
+                "source_id": source_id,
+                "kind": "success",
+                "message": (
+                    "PDF text extracted: "
+                    f"`{result['non_empty_page_count']}` text pages out of "
+                    f"`{result['page_count']}`."
+                ),
+            }
+        else:
+            st.session_state.chunking_notice = {
+                "source_id": source_id,
+                "kind": "error",
+                "message": result.get("error") or "PDF extraction failed.",
+            }
+        return
+
+    st.session_state.chunking_notice = {
+        "source_id": source_id,
+        "kind": "error",
+        "message": f"PDF extraction failed: {job_error_message(job)}",
+    }
+
+
+def apply_completed_chunk_generation_job(job: dict[str, Any]) -> None:
+    source_id = str((job.get("metadata") or {}).get("source_id") or "")
+    if str(job.get("status") or "") != "completed":
+        st.session_state.chunking_notice = {
+            "source_id": source_id,
+            "kind": "error",
+            "message": f"Chunking failed: {job_error_message(job)}",
+        }
+        return
+
+    result = job.get("result") or {}
+    if result.get("accepted"):
+        accepted_reason = str(result.get("accepted_reason") or "").strip()
+        if accepted_reason == "separation_score_threshold":
+            separation = (result.get("retrieval_evaluation") or {}).get("separation_score")
+            message = (
+                f"Chunks accepted from `{result['run_id']}` because retrieval "
+                f"separation `{format_distance(separation)}` exceeded "
+                f"`{MIN_ACCEPTED_SEPARATION_SCORE:.1f}`."
+            )
+        elif accepted_reason == "highest_separation_score_fallback":
+            separation = (result.get("retrieval_evaluation") or {}).get("separation_score")
+            message = (
+                f"No run exceeded `{MIN_ACCEPTED_SEPARATION_SCORE:.1f}`. "
+                f"Accepted `{result['run_id']}` with the highest retrieval "
+                f"separation `{format_distance(separation)}`."
+            )
+        elif result.get("forced_acceptance"):
+            message = (
+                f"Chunks accepted from `{result['run_id']}` "
+                f"on attempt `{result.get('attempt', 'unknown')}` / "
+                f"`{result.get('max_attempts', 'unknown')}` "
+                "because the maximum number of attempts was reached."
+            )
+        else:
+            message = (
+                f"Chunks accepted from `{result['run_id']}` "
+                f"on attempt `{result.get('attempt', 'unknown')}` / "
+                f"`{result.get('max_attempts', 'unknown')}`."
+            )
+        st.session_state.chunking_notice = {
+            "source_id": source_id,
+            "kind": "success",
+            "message": message,
+        }
+        return
+
+    st.session_state.chunking_notice = {
+        "source_id": source_id,
+        "kind": "error",
+        "message": (
+            "Chunking did not produce a valid retrieval separation run. "
+            f"Latest run: `{result.get('run_id', 'unknown')}` "
+            f"attempt `{result.get('attempt', 'unknown')}` / "
+            f"`{result.get('max_attempts', 'unknown')}`."
+        ),
+    }
+
+
+def apply_completed_source_embedding_job(job: dict[str, Any]) -> None:
+    source_id = str((job.get("metadata") or {}).get("source_id") or "")
+    try:
+        from tcmrag.rag import clear_rag_cache
+
+        clear_rag_cache()
+    except Exception:
+        pass
+
+    if str(job.get("status") or "") != "completed":
+        st.session_state.chunking_notice = {
+            "source_id": source_id,
+            "kind": "error",
+            "message": f"Embedding failed: {job_error_message(job)}",
+        }
+        return
+
+    result = job.get("result") or {}
+    evaluation = result.get("evaluation") or {}
+    st.session_state.chunking_notice = {
+        "source_id": source_id,
+        "kind": "success",
+        "message": (
+            f"Embedded `{result.get('chunk_count', 'unknown')}` chunks. "
+            f"Avg top-k good distance: "
+            f"`{format_distance(evaluation.get('good_avg_top_k_distance'))}`; "
+            f"bad distance: "
+            f"`{format_distance(evaluation.get('bad_avg_top_k_distance'))}`."
+        ),
+    }
+
+
+def apply_completed_combined_embedding_job(job: dict[str, Any]) -> None:
+    notice_source_id = str((job.get("metadata") or {}).get("notice_source_id") or "")
+    try:
+        from tcmrag.rag import clear_rag_cache
+
+        clear_rag_cache()
+    except Exception:
+        pass
+
+    if str(job.get("status") or "") != "completed":
+        st.session_state.chunking_notice = {
+            "source_id": notice_source_id,
+            "kind": "error",
+            "message": f"Combined embedding failed: {job_error_message(job)}",
+        }
+        return
+
+    result = job.get("result") or {}
+    evaluation = result.get("evaluation") or {}
+    st.session_state.chunking_notice = {
+        "source_id": notice_source_id,
+        "kind": "success",
+        "message": (
+            f"Built combined vectorstore from `{result.get('source_count', 'unknown')}` sources "
+            f"and `{result.get('chunk_count', 'unknown')}` chunks. "
+            f"Good avg: `{format_distance(evaluation.get('good_avg_top_k_distance'))}`; "
+            f"bad avg: `{format_distance(evaluation.get('bad_avg_top_k_distance'))}`."
+        ),
+    }
+
+
+def apply_completed_delete_vectorstore_sync_job(job: dict[str, Any]) -> None:
+    if str(job.get("status") or "") != "completed":
+        st.session_state.document_notice = {
+            "kind": "error",
+            "message": (
+                "The document was deleted, but updating the combined vectorstore failed. "
+                "Please rebuild the combined vectorstore manually."
+            ),
+        }
+        return
+
+    result = job.get("result")
+    if result == "rebuilt":
+        message = "Uploaded document deleted. Combined vectorstore rebuilt."
+    elif result == "cleared":
+        message = "Uploaded document deleted. Combined vectorstore cleared."
+    elif result == "cleared_no_key":
+        message = (
+            "Uploaded document deleted. Combined vectorstore was cleared because "
+            "rebuilding it requires OPENAI_API_KEY."
+        )
+    else:
+        message = "Uploaded document deleted."
+
+    st.session_state.document_notice = {
+        "kind": "success",
+        "message": message,
+    }
+
+
+def apply_completed_background_job(job: dict[str, Any]) -> None:
+    kind = str(job.get("kind") or "")
+    if kind == "chat_answer":
+        apply_completed_chat_job(job)
+        return
+    if kind == "pdf_extraction":
+        apply_completed_pdf_extraction_job(job)
+        return
+    if kind == "chunk_generation":
+        apply_completed_chunk_generation_job(job)
+        return
+    if kind == "source_embedding":
+        apply_completed_source_embedding_job(job)
+        return
+    if kind == "combined_embedding":
+        apply_completed_combined_embedding_job(job)
+        return
+    if kind == "delete_vectorstore_sync":
+        apply_completed_delete_vectorstore_sync_job(job)
+
+
+def sync_background_jobs(trigger_rerun_on_change: bool = False) -> bool:
+    changed = False
+    for job_id in list(st.session_state.background_job_ids):
+        job = get_background_job_snapshot(job_id)
+        if job is None:
+            untrack_background_job(job_id)
+            changed = True
+            continue
+
+        if is_background_job_active(job):
+            continue
+
+        apply_completed_background_job(job)
+        discard_background_job(job_id)
+        untrack_background_job(job_id)
+        changed = True
+
+    if changed and trigger_rerun_on_change:
+        st.rerun()
+
+    return changed
+
+
+def query_param_text(name: str) -> str:
+    value = st.query_params.get(name, "")
+    if isinstance(value, list):
+        value = value[-1] if value else ""
+    return str(value or "")
+
+
+def renderable_markdown(markdown_text: str) -> str:
+    return rewrite_markdown_citation_links(markdown_text, load_document_sources())
+
+
+def render_document_notice() -> None:
+    notice = st.session_state.get("document_notice")
+    if not isinstance(notice, dict):
+        return
+
+    message = str(notice.get("message") or "").strip()
+    if not message:
+        st.session_state.document_notice = None
+        return
+
+    if notice.get("kind") == "error":
+        st.error(message)
+    else:
+        st.success(message)
+
+    st.session_state.document_notice = None
+
+
 def render_assistant_details(message: dict) -> None:
-    search_question = message.get("search_question")
-    scores = message.get("scores")
+    job_error = str(message.get("job_error") or "").strip()
     sources = message.get("sources")
-    max_distance = message.get("max_distance")
 
-    if search_question:
-        with st.expander("Standalone retrieval question"):
-            st.write(search_question)
-
-    if scores is not None:
-        with st.expander("Retrieval scores"):
-            st.caption("FAISS distance score: lower means more related.")
-            if max_distance is not None:
-                st.caption(
-                    f"Threshold used: threshold = {clamp_max_distance(max_distance):.2f}"
-                )
-            st.write(scores)
+    if job_error:
+        with st.expander("Job error"):
+            st.code(job_error, language="text")
 
     if sources:
         with st.expander("Sources"):
@@ -138,22 +601,78 @@ def render_assistant_details(message: dict) -> None:
                 page = source.get("pdf_page", "unknown")
 
                 st.markdown(f"**Source {index} - page {page}**")
-                st.markdown(citation)
+                st.markdown(renderable_markdown(citation))
                 st.json(source)
-    elif sources == []:
-        st.info("No source passed the retrieval threshold.")
 
 
 def render_chat_message(message: dict) -> None:
-    st.markdown(message["content"])
+    pending_job_id = str(message.get("pending_job_id") or "").strip()
+    if pending_job_id:
+        st.markdown(message["content"])
+        job = get_background_job_snapshot(pending_job_id)
+        if job is not None:
+            st.progress(
+                clamp_job_progress(job.get("progress", 0.0)),
+                text=str(job.get("message") or "Answer in progress."),
+            )
+        return
+
+    st.markdown(renderable_markdown(message["content"]))
 
     if message["role"] == "assistant":
         render_assistant_details(message)
 
 
+def render_streamed_markdown(chunks) -> str:
+    placeholder = st.empty()
+    collected_chunks = []
+
+    for chunk in chunks:
+        text = str(chunk or "")
+        if not text:
+            continue
+
+        collected_chunks.append(text)
+        placeholder.markdown(renderable_markdown("".join(collected_chunks)) + "▌")
+
+    answer = "".join(collected_chunks)
+    placeholder.markdown(renderable_markdown(answer))
+    return answer
+
+
+def assistant_message_from_rag_result(result: dict) -> dict[str, Any]:
+    return {
+        "role": "assistant",
+        "content": result.get("answer", ""),
+        "sources": result.get("sources", []),
+        "scores": result.get("scores", []),
+        "search_question": result.get("search_question"),
+        "max_distance": result.get("max_distance", clamp_max_distance(st.session_state.max_distance)),
+        "vectorstore_path": result.get("vectorstore_path"),
+    }
+
+
 def save_app_settings() -> None:
     st.session_state.max_distance = clamp_max_distance(st.session_state.max_distance)
     write_app_settings(st.session_state.max_distance)
+
+
+def current_vectorstore_label() -> str:
+    try:
+        from tcmrag.rag import active_vectorstore_label
+
+        return active_vectorstore_label()
+    except Exception:
+        return "No vectorstore available."
+
+
+def rag_vectorstore_available() -> bool:
+    try:
+        from tcmrag.rag import vectorstore_available
+
+        return vectorstore_available()
+    except Exception:
+        return False
 
 
 def open_chunks_window(source: dict) -> None:
@@ -169,6 +688,7 @@ def open_chunks_window(source: dict) -> None:
         })
 
     st.session_state.app_windows = windows
+    request_selected_source(source["id"])
     request_top_panel("documents")
     st.session_state.active_document_window_id = window_id
 
@@ -186,8 +706,29 @@ def open_pdf_window(source: dict) -> None:
         })
 
     st.session_state.app_windows = windows
+    request_selected_source(source["id"])
     request_top_panel("documents")
     st.session_state.active_document_window_id = window_id
+
+
+def handle_citation_navigation() -> None:
+    source_id = query_param_text(CITATION_SOURCE_QUERY_PARAM).strip()
+    page = parse_positive_page(query_param_text(CITATION_PAGE_QUERY_PARAM))
+
+    if not source_id or page is None:
+        return
+
+    source = source_for_id(source_id)
+    st.query_params.clear()
+
+    if source is None:
+        st.rerun()
+
+    request_selected_source(source_id)
+    open_pdf_window(source)
+    st.session_state[f"pdf_page_{source_id}"] = page
+    st.session_state.active_document_window_id = pdf_window_id(source_id)
+    st.rerun()
 
 
 def close_window(window_id: str) -> None:
@@ -196,7 +737,7 @@ def close_window(window_id: str) -> None:
     ]
 
     if st.session_state.active_document_window_id == window_id:
-        st.session_state.active_document_window_id = "documents"
+        st.session_state.active_document_window_id = next_available_document_window_id()
 
 
 def close_source_windows(source_id: str) -> None:
@@ -212,39 +753,131 @@ def close_source_windows(source_id: str) -> None:
     ]
 
     if st.session_state.active_document_window_id in closed_window_ids:
-        st.session_state.active_document_window_id = "documents"
+        st.session_state.active_document_window_id = next_available_document_window_id()
+
+
+def next_available_document_window_id() -> str:
+    windows = list(st.session_state.app_windows)
+    if windows:
+        return str(windows[0].get("id") or "documents")
+    return "documents"
+
+
+def active_source_id_from_windows(windows: list[dict]) -> str | None:
+    active_window_id = st.session_state.active_document_window_id
+
+    for window in windows:
+        if window.get("id") != active_window_id:
+            continue
+
+        source_id = str(window.get("source_id") or "").strip()
+        if source_id:
+            return source_id
+
+    return None
+
+
+def sync_document_window_state() -> None:
+    valid_source_ids = {
+        source["id"]
+        for source in load_document_sources()
+    }
+    windows = list(st.session_state.app_windows)
+    filtered_windows = [
+        window
+        for window in windows
+        if not window.get("source_id") or window.get("source_id") in valid_source_ids
+    ]
+
+    if len(filtered_windows) != len(windows):
+        st.session_state.app_windows = filtered_windows
+
+    valid_window_ids = {"documents"} | {
+        str(window.get("id") or "")
+        for window in filtered_windows
+    }
+    if st.session_state.active_document_window_id not in valid_window_ids:
+        st.session_state.active_document_window_id = next_available_document_window_id()
+
+    active_source_id = active_source_id_from_windows(filtered_windows)
+    if active_source_id and active_source_id in valid_source_ids:
+        request_selected_source(active_source_id)
 
 
 def render_pdf_upload() -> None:
-    uploaded_pdf = st.file_uploader(
+    widget_key = f"pdf_upload_input_{st.session_state.pdf_upload_widget_nonce}"
+    st.file_uploader(
         "Upload PDF",
         type=["pdf"],
         accept_multiple_files=False,
+        key=widget_key,
+        on_change=handle_pdf_upload_selection,
+        args=(widget_key,),
+        help="Select a PDF and it will be saved immediately.",
     )
-    submitted = st.button("Save uploaded PDF", use_container_width=True)
 
-    if not submitted:
-        return
 
+def handle_pdf_upload_selection(widget_key: str) -> None:
+    uploaded_pdf = st.session_state.get(widget_key)
     if uploaded_pdf is None:
-        st.warning("Choose a PDF before saving.")
         return
 
     try:
         metadata = save_uploaded_pdf(uploaded_pdf)
     except Exception as exc:
-        st.error("Could not save the uploaded PDF.")
-        st.exception(exc)
+        st.session_state.document_notice = {
+            "kind": "error",
+            "message": f"Could not save the uploaded PDF: {exc}",
+        }
+        st.session_state.pdf_upload_widget_nonce += 1
         return
 
     request_selected_source(metadata["id"])
     request_top_panel("documents")
     st.session_state.active_document_window_id = "documents"
-    st.success("PDF saved. Chunking has not been run yet.")
-    st.rerun()
+    st.session_state.document_notice = {
+        "kind": "success",
+        "message": "PDF saved. Chunking has not been run yet.",
+    }
+    st.session_state.pdf_upload_widget_nonce += 1
 
 
-def render_delete_document_control(source: dict, remaining_source_ids: list[str]) -> None:
+def sync_combined_vectorstore_after_document_delete(deleted_source: dict) -> str | None:
+    if deleted_source["id"] not in combined_manifest_source_ids():
+        return None
+
+    remaining_sources = load_document_sources()
+
+    try:
+        from tcmrag.rag import clear_rag_cache
+    except Exception:
+        clear_rag_cache = None
+
+    if not remaining_sources or not os.getenv("OPENAI_API_KEY"):
+        clear_combined_vectorstore()
+        if clear_rag_cache is not None:
+            clear_rag_cache()
+
+        if not remaining_sources:
+            return "cleared"
+
+        return "cleared_no_key"
+
+    try:
+        run_combined_embedding_for_sources(remaining_sources)
+    except ValueError:
+        clear_combined_vectorstore()
+        if clear_rag_cache is not None:
+            clear_rag_cache()
+        return "cleared"
+
+    if clear_rag_cache is not None:
+        clear_rag_cache()
+
+    return "rebuilt"
+
+
+def render_delete_document_control(source: dict) -> None:
     if not is_uploaded_source(source):
         return
 
@@ -258,7 +891,7 @@ def render_delete_document_control(source: dict, remaining_source_ids: list[str]
 
         if st.button(
             "Delete uploaded document",
-            disabled=not confirmed,
+            disabled=not confirmed or source_job_in_progress(source["id"]) or combined_embedding_job_in_progress(),
             use_container_width=True,
         ):
             try:
@@ -268,10 +901,30 @@ def render_delete_document_control(source: dict, remaining_source_ids: list[str]
                 st.exception(exc)
                 return
 
+            combined_sync_job_id = None
+            if source["id"] in combined_manifest_source_ids():
+                combined_sync_job_id = submit_delete_vectorstore_sync_job(source)
+                track_background_job(combined_sync_job_id)
+
             close_source_windows(source["id"])
+            remaining_sources = load_document_sources()
+            remaining_source_ids = [item["id"] for item in remaining_sources]
             request_selected_source(remaining_source_ids[0] if remaining_source_ids else None)
             request_top_panel("documents")
-            st.success("Uploaded document deleted.")
+            st.session_state.pop(f"pdf_page_{source['id']}", None)
+            st.session_state.pop(confirm_key, None)
+
+            if combined_sync_job_id is not None:
+                st.session_state.document_notice = {
+                    "kind": "success",
+                    "message": "Uploaded document deleted. Combined vectorstore update started in the background.",
+                }
+            else:
+                st.session_state.document_notice = {
+                    "kind": "success",
+                    "message": "Uploaded document deleted.",
+                }
+
             st.rerun()
 
 
@@ -288,6 +941,34 @@ def render_chunking_notice(source: dict) -> None:
     st.session_state.chunking_notice = None
 
 
+def truncate_chunking_feedback(text: str, limit: int = 3000) -> str:
+    content = str(text or "").strip()
+    if len(content) <= limit:
+        return content
+    return content[: limit - 17].rstrip() + "\n\n[feedback truncated]"
+
+
+@st.fragment(run_every="2s")
+def render_active_jobs_panel() -> None:
+    sync_background_jobs(trigger_rerun_on_change=True)
+    jobs = active_session_jobs()
+    if not jobs:
+        return
+
+    st.subheader("Active jobs")
+    for job in jobs:
+        label = str(job.get("label") or "Background job")
+        message = str(job.get("message") or label)
+        st.caption(label)
+        st.progress(clamp_job_progress(job.get("progress", 0.0)), text=message)
+
+        feedback = truncate_chunking_feedback(str(job.get("feedback") or ""))
+        if feedback:
+            feedback_title = str(job.get("feedback_title") or "Latest feedback")
+            with st.expander(feedback_title):
+                st.code(feedback, language="text")
+
+
 def render_chunking_status(source: dict) -> None:
     chunking = source["metadata"].get("chunking")
     if not isinstance(chunking, dict):
@@ -297,63 +978,335 @@ def render_chunking_status(source: dict) -> None:
     latest_run_id = str(chunking.get("latest_run_id") or "unknown")
     st.caption(f"Chunking status: `{status}` from `{latest_run_id}`")
 
+    attempt_label = format_chunking_attempt_label(chunking)
+    if attempt_label:
+        st.caption(f"Chunk generation attempt: {attempt_label}")
+
+    if chunking.get("forced_acceptance"):
+        st.caption("Accepted after reaching the maximum number of attempts.")
+
+    accepted_reason = str(chunking.get("accepted_reason") or "").strip()
+    if accepted_reason == "separation_score_threshold":
+        st.caption(
+            "Accepted because retrieval separation exceeded "
+            f"`{MIN_ACCEPTED_SEPARATION_SCORE:.1f}`."
+        )
+    elif accepted_reason == "highest_separation_score_fallback":
+        st.caption(
+            "Accepted as the highest-separation run after all attempts stayed "
+            f"below `{MIN_ACCEPTED_SEPARATION_SCORE:.1f}`."
+        )
+
     judge_report = chunking.get("judge_report")
     if isinstance(judge_report, dict):
-        score = judge_report.get("score", "unknown")
-        passed = judge_report.get("pass", False)
-        st.caption(f"Judge: `{'pass' if passed else 'fail'}` score `{score}`")
+        reasoning_summary = str(judge_report.get("reasoning_summary") or "").strip()
+        feedback = str(judge_report.get("feedback_for_chunker") or "").strip()
+        if reasoning_summary or feedback:
+            with st.expander("Chunker feedback"):
+                if reasoning_summary:
+                    st.write(reasoning_summary)
+                if feedback:
+                    st.write(feedback)
+
+    retrieval_evaluation = chunking.get("retrieval_evaluation")
+    if isinstance(retrieval_evaluation, dict):
+        top_k = retrieval_evaluation.get("top_k", 5)
+        good_avg = retrieval_evaluation.get("good_avg_top_k_distance")
+        bad_avg = retrieval_evaluation.get("bad_avg_top_k_distance")
+        separation = retrieval_evaluation.get("separation_score")
+        st.caption(
+            f"Run retrieval gap top k=`{top_k}`: "
+            f"good `{format_distance(good_avg)}`, "
+            f"bad `{format_distance(bad_avg)}`, "
+            f"gap `{format_distance(separation)}`."
+        )
+
+    validation = chunking.get("validation")
+    if status == "failed" and isinstance(validation, dict):
+        errors = validation.get("errors")
+        if isinstance(errors, list) and errors:
+            st.warning(str(errors[0]))
+
+
+def render_source_active_jobs(source: dict) -> None:
+    jobs = source_jobs_in_progress(source["id"])
+    if not jobs:
+        return
+
+    st.caption("Active document jobs")
+    for job in jobs:
+        st.progress(
+            clamp_job_progress(job.get("progress", 0.0)),
+            text=str(job.get("message") or job.get("label") or "Working..."),
+        )
+        feedback = truncate_chunking_feedback(str(job.get("feedback") or ""))
+        if feedback:
+            with st.expander(str(job.get("feedback_title") or "Latest feedback")):
+                st.code(feedback, language="text")
+
+
+def render_embedding_status(source: dict) -> None:
+    embedding = source["metadata"].get("embedding")
+    if not isinstance(embedding, dict):
+        return
+
+    status = str(embedding.get("status") or "unknown")
+    model = str(embedding.get("model") or "unknown")
+    vectorstore_path = str(embedding.get("vectorstore_path") or "unknown")
+    chunk_count = embedding.get("chunk_count", "unknown")
+    st.caption(
+        f"Embedding status: `{status}` using `{model}` "
+        f"for `{chunk_count}` chunks."
+    )
+    st.caption(f"Vectorstore: `{vectorstore_path}`")
+
+    evaluation = embedding.get("evaluation")
+    if isinstance(evaluation, dict):
+        top_k = evaluation.get("top_k", 5)
+        good_avg = evaluation.get("good_avg_top_k_distance")
+        bad_avg = evaluation.get("bad_avg_top_k_distance")
+        st.caption(
+            f"Avg distance top k=`{top_k}`: "
+            f"good `{format_distance(good_avg)}`, "
+            f"bad `{format_distance(bad_avg)}`."
+        )
+
+
+def render_combined_embedding_status() -> None:
+    manifest = load_combined_embedding_manifest()
+    if not manifest:
+        return
+
+    status = str(manifest.get("status") or "unknown")
+    model = str(manifest.get("model") or "unknown")
+    source_count = manifest.get("source_count", "unknown")
+    chunk_count = manifest.get("chunk_count", "unknown")
+    vectorstore_path = str(manifest.get("vectorstore_path") or "unknown")
+    st.caption(
+        f"Combined vectorstore: `{status}` using `{model}` "
+        f"from `{source_count}` sources and `{chunk_count}` chunks."
+    )
+    st.caption(f"Combined path: `{vectorstore_path}`")
+
+    combined_names = combined_source_names(manifest)
+    if combined_names:
+        st.caption(f"Included documents: {combined_names}")
+
+    evaluation = manifest.get("evaluation")
+    if isinstance(evaluation, dict):
+        top_k = evaluation.get("top_k", 5)
+        good_avg = evaluation.get("good_avg_top_k_distance")
+        bad_avg = evaluation.get("bad_avg_top_k_distance")
+        st.caption(
+            f"Combined avg distance top k=`{top_k}`: "
+            f"good `{format_distance(good_avg)}`, "
+            f"bad `{format_distance(bad_avg)}`."
+        )
+
+
+def combined_source_names(manifest: dict | None) -> str:
+    if not isinstance(manifest, dict):
+        return ""
+
+    sources = manifest.get("sources")
+    if not isinstance(sources, list):
+        return ""
+
+    names = []
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+
+        name = str(source.get("display_name") or source.get("id") or "").strip()
+        if name:
+            names.append(name)
+
+    return ", ".join(names)
+
+
+def format_distance(value) -> str:
+    try:
+        return f"{float(value):.6f}"
+    except (TypeError, ValueError):
+        return "unknown"
+
+
+def format_chunking_attempt_label(chunking: dict) -> str:
+    attempt = chunking.get("attempt")
+    max_attempts = chunking.get("max_attempts")
+
+    if attempt is None:
+        run_id = str(chunking.get("latest_run_id") or "")
+        match = re.search(r"_(\d+)_[0-9a-f]{8}$", run_id)
+        if match:
+            attempt = match.group(1)
+
+    if attempt in (None, 0, "0"):
+        return ""
+
+    if max_attempts in (None, 0, "0"):
+        return f"`{attempt}`"
+
+    return f"`{attempt}` / `{max_attempts}`"
+
+
+def extracted_pages_ready(source: dict) -> bool:
+    extraction = source["metadata"].get("pdf_extraction")
+    if not isinstance(extraction, dict):
+        return False
+
+    pages_filename = str(extraction.get("pages_path") or "pages.json")
+    pages_path = Path(source["source_dir"]) / pages_filename
+    return extraction.get("status") == "extracted" and pages_path.exists()
+
+
+def render_pdf_extraction_status(source: dict) -> None:
+    extraction = source["metadata"].get("pdf_extraction")
+    if not isinstance(extraction, dict):
+        return
+
+    status = str(extraction.get("status") or "unknown")
+    page_count = extraction.get("page_count", "unknown")
+    non_empty_page_count = extraction.get("non_empty_page_count", "unknown")
+    st.caption(
+        "PDF extraction: "
+        f"`{status}` with `{non_empty_page_count}` text pages out of `{page_count}`."
+    )
+
+    error = str(extraction.get("error") or "").strip()
+    if status == "failed" and error:
+        st.warning(error)
+
+
+def render_pdf_extraction_control(source: dict, pdf_path: Path | None) -> None:
+    if not is_uploaded_source(source):
+        return
+
+    extraction_in_progress = source_job_in_progress(source["id"])
+    label = "Re-extract PDF" if source["metadata"].get("pdf_extraction") else "Extract PDF"
+    if st.button(
+        label,
+        disabled=pdf_path is None or extraction_in_progress,
+        help="Extract text from the PDF into pages.json.",
+        use_container_width=True,
+    ):
+        job_id = submit_pdf_extraction_job(source)
+        track_background_job(job_id)
+        st.session_state.chunking_notice = {
+            "source_id": source["id"],
+            "kind": "success",
+            "message": "PDF extraction started in the background.",
+        }
+        st.rerun()
 
 
 def render_ai_chunking_control(source: dict, chunks: list[dict], pdf_path: Path | None) -> None:
     if not is_uploaded_source(source):
         return
 
+    has_extracted_pages = extracted_pages_ready(source)
+    chunking_in_progress = source_job_in_progress(source["id"])
     label = "Regenerate chunks" if chunks else "Generate chunks"
-    if st.button(label, disabled=pdf_path is None, use_container_width=True):
+    if st.button(
+        label,
+        disabled=pdf_path is None or not has_extracted_pages or chunking_in_progress,
+        help="Run this after PDF extraction succeeds.",
+        use_container_width=True,
+    ):
+        if not has_extracted_pages:
+            st.session_state.chunking_notice = {
+                "source_id": source["id"],
+                "kind": "error",
+                "message": "Extract PDF before generating chunks.",
+            }
+            st.rerun()
+
         if not os.getenv("OPENAI_API_KEY"):
             st.session_state.chunking_notice = {
                 "source_id": source["id"],
                 "kind": "error",
-                "message": "OPENAI_API_KEY is required to generate and judge chunks.",
+                "message": "OPENAI_API_KEY is required to generate chunks and feedback.",
             }
             st.rerun()
 
-        try:
-            with st.spinner("Generating, validating, and judging chunks..."):
-                result = run_ai_chunking(source)
-        except Exception as exc:
+        job_id = submit_chunk_generation_job(source)
+        track_background_job(job_id)
+        st.session_state.chunking_notice = {
+            "source_id": source["id"],
+            "kind": "success",
+            "message": "Chunk generation started in the background.",
+        }
+        st.rerun()
+
+
+def render_embedding_control(source: dict, chunks: list[dict]) -> None:
+    if not is_uploaded_source(source):
+        return
+
+    embedding = source["metadata"].get("embedding")
+    embedding_in_progress = source_job_in_progress(source["id"])
+    label = "Re-embed chunks" if isinstance(embedding, dict) else "Embed chunks"
+    if st.button(
+        label,
+        disabled=not chunks or embedding_in_progress,
+        help="Build a FAISS vectorstore from this document's chunks.",
+        use_container_width=True,
+    ):
+        if not os.getenv("OPENAI_API_KEY"):
             st.session_state.chunking_notice = {
                 "source_id": source["id"],
                 "kind": "error",
-                "message": f"Chunking failed: {exc}",
+                "message": "OPENAI_API_KEY is required to embed chunks.",
             }
             st.rerun()
 
-        if result.get("accepted"):
-            st.session_state.chunking_notice = {
-                "source_id": source["id"],
-                "kind": "success",
-                "message": f"Chunks accepted from `{result['run_id']}`.",
-            }
-        else:
-            st.session_state.chunking_notice = {
-                "source_id": source["id"],
-                "kind": "error",
-                "message": (
-                    "Chunking did not pass quality review. "
-                    f"Latest run: `{result.get('run_id', 'unknown')}`."
-                ),
-            }
+        job_id = submit_source_embedding_job(source)
+        track_background_job(job_id)
+        st.session_state.chunking_notice = {
+            "source_id": source["id"],
+            "kind": "success",
+            "message": "Embedding started in the background.",
+        }
+        st.rerun()
 
+
+def render_combined_embedding_control(sources: list[dict], notice_source_id: str) -> None:
+    manifest = load_combined_embedding_manifest()
+    label = "Rebuild combined vectorstore" if manifest else "Build combined vectorstore"
+    has_chunks = any(Path(source["chunks_path"]).exists() for source in sources)
+    combined_job_active = any_document_job_in_progress()
+
+    if st.button(
+        label,
+        disabled=not has_chunks or combined_job_active,
+        help="Build one FAISS vectorstore from all sources that have chunks.",
+        use_container_width=True,
+    ):
+        if not os.getenv("OPENAI_API_KEY"):
+            st.session_state.chunking_notice = {
+                "source_id": notice_source_id,
+                "kind": "error",
+                "message": "OPENAI_API_KEY is required to build the combined vectorstore.",
+            }
+            st.rerun()
+
+        job_id = submit_combined_embedding_job(sources, notice_source_id)
+        track_background_job(job_id)
+        st.session_state.chunking_notice = {
+            "source_id": notice_source_id,
+            "kind": "success",
+            "message": "Combined vectorstore build started in the background.",
+        }
         st.rerun()
 
 
 def render_document_window() -> None:
     st.title("Documents")
+    render_document_notice()
     sources = load_document_sources()
 
     if not sources:
-        st.info("No uploaded documents found.")
+        st.info("No documents found.")
         render_pdf_upload()
         return
 
@@ -370,27 +1323,32 @@ def render_document_window() -> None:
         current_source_id = pending_source_id if pending_source_id in source_by_id else None
         st.session_state.pending_selected_source_id = None
 
+    if current_source_id not in source_by_id:
+        if "selected_source_id" in st.session_state:
+            del st.session_state["selected_source_id"]
+        current_source_id = source_ids[0]
+
     selected_index = 0
 
     if current_source_id in source_by_id:
         selected_index = source_ids.index(current_source_id)
 
     selected_source_id = st.selectbox(
-        "Uploaded documents",
+        "Documents",
         source_ids,
         index=selected_index,
         format_func=lambda source_id: source_label(source_by_id[source_id]),
         key="selected_source_id",
     )
     source = source_by_id[selected_source_id]
-    remaining_source_ids = [
-        source_id for source_id in source_ids if source_id != selected_source_id
-    ]
     chunks = load_source_chunks(source["chunks_path"])
     pdf_path = local_pdf_path(source)
 
     render_chunking_notice(source)
+    render_pdf_extraction_status(source)
     render_chunking_status(source)
+    render_source_active_jobs(source)
+    render_embedding_status(source)
 
     st.caption(f"Chunks: `{len(chunks)}`")
 
@@ -412,8 +1370,11 @@ def render_document_window() -> None:
     if not chunks:
         st.info("No chunks found for this document.")
 
+    render_pdf_extraction_control(source, pdf_path)
     render_ai_chunking_control(source, chunks, pdf_path)
-    render_delete_document_control(source, remaining_source_ids)
+    render_embedding_control(source, chunks)
+    render_combined_embedding_control(sources, source["id"])
+    render_delete_document_control(source)
 
     st.divider()
     render_pdf_upload()
@@ -422,6 +1383,12 @@ def render_document_window() -> None:
 def render_chat_header() -> None:
     st.title("TCM Citation RAG")
     st.caption("Ask a Traditional Chinese Medicine question and retrieve cited context.")
+
+    if not rag_vectorstore_available():
+        st.info(
+            "No documents are currently available for retrieval. "
+            "Open Document and upload a PDF before asking questions."
+        )
 
 
 def top_panel_options() -> list[str]:
@@ -532,6 +1499,9 @@ def render_document_window_bar() -> None:
                         type=button_type,
                         use_container_width=True,
                     ):
+                        source_id = str(window.get("source_id") or "").strip()
+                        if source_id:
+                            request_selected_source(source_id)
                         st.session_state.active_document_window_id = window_id
                         st.rerun()
 
@@ -652,6 +1622,7 @@ def render_pdf_window(window: dict) -> None:
 
 
 def render_document_panel() -> None:
+    sync_document_window_state()
     render_document_window_bar()
     window = active_document_window()
 
@@ -720,7 +1691,12 @@ def start_new_chat() -> None:
 def render_sidebar() -> None:
     with st.sidebar:
         st.header("Status")
-        st.write(f"Vector store: `{DEFAULT_VECTORSTORE_LABEL}`")
+        render_active_jobs_panel()
+        combined_manifest = load_combined_embedding_manifest()
+        if combined_manifest:
+            render_combined_embedding_status()
+        else:
+            st.write(f"Vector store: `{current_vectorstore_label()}`")
         st.slider(
             "threshold",
             min_value=MIN_MAX_DISTANCE,
@@ -740,15 +1716,9 @@ def render_sidebar() -> None:
         st.divider()
         st.header("Chats")
         st.caption(f"Current: {st.session_state.current_chat_title}")
+        chat_busy = chat_job_in_progress()
 
-        if st.button("Save chat", use_container_width=True):
-            saved_chat = save_current_chat()
-            if saved_chat is None:
-                st.info("No messages to save yet.")
-            else:
-                st.success("Chat saved.")
-
-        if st.button("New chat", use_container_width=True):
+        if st.button("New chat", use_container_width=True, disabled=chat_busy):
             start_new_chat()
 
         sessions = load_chat_sessions()
@@ -769,7 +1739,7 @@ def render_sidebar() -> None:
                 format_func=lambda chat_id: session_label(session_by_id[chat_id]),
             )
 
-            if st.button("Open selected chat", use_container_width=True):
+            if st.button("Open selected chat", use_container_width=True, disabled=chat_busy):
                 if selected_chat_id != st.session_state.current_chat_id:
                     save_current_chat()
 
@@ -843,7 +1813,8 @@ def install_ime_safe_enter_submit() -> None:
 
 
 def handle_user_question() -> None:
-    new_turn_container = st.container()
+    vectorstore_ready = rag_vectorstore_available()
+    chat_busy = chat_job_in_progress()
     with st.form("chat_input_form", clear_on_submit=True):
         input_column, send_column = st.columns([12, 1], vertical_alignment="bottom")
 
@@ -860,7 +1831,12 @@ def handle_user_question() -> None:
                 "Send",
                 type="primary",
                 icon=":material/send:",
-                help="Send message",
+                help=(
+                    "Send message"
+                    if vectorstore_ready
+                    else "Upload a document before asking questions."
+                ),
+                disabled=not vectorstore_ready or chat_busy,
                 use_container_width=True,
             )
 
@@ -880,43 +1856,53 @@ def handle_user_question() -> None:
         "content": question,
     }
     st.session_state.messages.append(user_message)
+    with st.chat_message("user"):
+        st.markdown(question)
 
-    with new_turn_container:
-        with st.chat_message("user"):
-            render_chat_message(user_message)
+    max_distance = clamp_max_distance(st.session_state.max_distance)
+    st.session_state.max_distance = max_distance
+    save_app_settings()
 
-    with new_turn_container:
-        with st.chat_message("assistant"):
-            try:
-                ask_tcm = load_ask_tcm()
-                max_distance = clamp_max_distance(st.session_state.max_distance)
-                st.session_state.max_distance = max_distance
-                save_app_settings()
-                with st.spinner("Retrieving sources and generating answer..."):
-                    result = ask_tcm(
-                        question,
-                        chat_history=chat_history,
-                        max_distance=max_distance,
-                    )
+    with st.chat_message("assistant"):
+        try:
+            from tcmrag.rag import (
+                prepare_tcm_answer,
+                result_from_prepared_answer,
+                stream_prepared_tcm_answer,
+            )
 
-            except Exception as exc:
-                st.error("The RAG pipeline failed to run.")
-                st.exception(exc)
-                st.stop()
+            prepared_answer = prepare_tcm_answer(
+                question,
+                chat_history=chat_history,
+                max_distance=max_distance,
+            )
+            if prepared_answer["ready_to_generate"]:
+                answer = render_streamed_markdown(
+                    stream_prepared_tcm_answer(prepared_answer)
+                )
+            else:
+                answer = str(prepared_answer.get("answer") or "")
+                st.markdown(renderable_markdown(answer))
 
+            result = result_from_prepared_answer(prepared_answer, answer)
+            assistant_message = assistant_message_from_rag_result(result)
+            render_assistant_details(assistant_message)
+        except Exception as exc:
+            error_text = f"{type(exc).__name__}: {exc}"
             assistant_message = {
                 "role": "assistant",
-                "content": result["answer"],
-                "sources": result.get("sources", []),
-                "scores": result.get("scores", []),
-                "search_question": result.get("search_question"),
-                "max_distance": result.get("max_distance", max_distance),
+                "content": "The RAG pipeline failed to run.",
+                "job_error": error_text,
             }
-            render_chat_message(assistant_message)
-            st.session_state.messages.append(assistant_message)
-            save_current_chat()
+            st.error(assistant_message["content"])
+            render_assistant_details(assistant_message)
+
+    st.session_state.messages.append(assistant_message)
+    save_current_chat()
 
 
+sync_background_jobs()
+handle_citation_navigation()
 render_top_panel()
 render_active_panel()
 render_sidebar()

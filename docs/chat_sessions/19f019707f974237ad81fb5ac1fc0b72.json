@@ -1,0 +1,27 @@
+{
+  "id": "19f019707f974237ad81fb5ac1fc0b72",
+  "title": "何謂陰陽五行",
+  "created_at": "2026-06-09T17:02:54",
+  "updated_at": "2026-06-09T17:02:54",
+  "messages": [
+    {
+      "role": "user",
+      "content": "何謂陰陽五行"
+    },
+    {
+      "role": "assistant",
+      "content": "This question does not look related to the TCM source material.",
+      "sources": [],
+      "scores": [
+        1.5232423543930054,
+        1.5267651081085205,
+        1.555877447128296,
+        1.5704944133758545,
+        1.5759775638580322
+      ],
+      "search_question": "何謂陰陽五行",
+      "max_distance": 1.25,
+      "vectorstore_path": "docs/vectorstores/faiss_openai_text_embedding_3_small_combined"
+    }
+  ]
+}

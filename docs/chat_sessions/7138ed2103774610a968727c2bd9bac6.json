@@ -1,0 +1,129 @@
+{
+  "id": "7138ed2103774610a968727c2bd9bac6",
+  "title": "中醫體系的形成時間？",
+  "created_at": "2026-06-09T19:05:35",
+  "updated_at": "2026-06-09T20:57:22",
+  "messages": [
+    {
+      "role": "user",
+      "content": "中醫體系的形成時間？"
+    },
+    {
+      "role": "assistant",
+      "content": "Generating answer...",
+      "sources": [],
+      "scores": []
+    },
+    {
+      "role": "assistant",
+      "content": "中醫體系的形成過程相當漫長，主要是在戰國至兩漢時期逐步建構完整的理論框架。\n\n首先，中醫的基礎理論與哲學思維是在戰國時期開始形成，而在兩漢時期向更為系統化的階段邁進。這一期間，新興的陰陽五行學說迅速成為中醫的重要哲學基石，其中包括人與自然的關係、身體的整體觀等核心理念的發展。這些理論為後來的診療方法提供了理論依據。[中医基础理论（新世纪第4版）cnzyy.org p.51](source://4_cnzyy_org#page=51)\n\n其次，在這段時期的發展中，中醫理論逐漸形成了成熟的辨證論治方法，此方法強調根據個體的具體症狀和病因進行針對性的治療，這與西醫以疾病為中心的治療方法形成鮮明對比。中醫的西醫體系基礎如脏腑經絡與精氣血津液等，均契合了整體觀念的治療原則。[中医基础理论（新世纪第4版）cnzyy.org p.51](source://4_cnzyy_org#page=51)\n\n最後，隨著各個時期的推進，中醫體系在魏晉隋唐及隨後的宋金元、明清期間均有显著之發展。這些時期內，不僅豐富了中醫的文獻與技術，還促進了醫學理念的實踐與創新，逐步完善了整體人體生理病理觀。[中医基础理论（新世纪第4版）cnzyy.org p.9](source://4_cnzyy_org#page=9)\n\n總結而言，中醫體系自戰國至兩漢期成型，經過幾百年的演變與整合，逐漸形成以氣一元論、辨證論治為核心的完整理論體系。",
+      "sources": [
+        {
+          "chunk_id": "p51_c4",
+          "citation_link": "source://4_cnzyy_org#page=51",
+          "pdf_page": 51,
+          "pdf_page_start": 51,
+          "pdf_page_end": 51,
+          "pdf_pages": [
+            51
+          ],
+          "citation_links": [
+            "source://4_cnzyy_org#page=51"
+          ],
+          "citation_markdown": "[中医基础理论（新世纪第4版）cnzyy.org p.51](source://4_cnzyy_org#page=51)",
+          "source_id": "4_cnzyy_org",
+          "source_match_ratio": 1.0,
+          "chunk_index": 72,
+          "source_display_name": "中医基础理论（新世纪第4版）cnzyy.org",
+          "source_type": "uploaded_pdf"
+        },
+        {
+          "chunk_id": "p9_c1",
+          "citation_link": "source://4_cnzyy_org#page=9",
+          "pdf_page": 9,
+          "pdf_page_start": 9,
+          "pdf_page_end": 9,
+          "pdf_pages": [
+            9
+          ],
+          "citation_links": [
+            "source://4_cnzyy_org#page=9"
+          ],
+          "citation_markdown": "[中医基础理论（新世纪第4版）cnzyy.org p.9](source://4_cnzyy_org#page=9)",
+          "source_id": "4_cnzyy_org",
+          "source_match_ratio": 1.0,
+          "chunk_index": 21,
+          "source_display_name": "中医基础理论（新世纪第4版）cnzyy.org",
+          "source_type": "uploaded_pdf"
+        },
+        {
+          "chunk_id": "p51_c2",
+          "citation_link": "source://4_cnzyy_org#page=51",
+          "pdf_page": 51,
+          "pdf_page_start": 51,
+          "pdf_page_end": 51,
+          "pdf_pages": [
+            51
+          ],
+          "citation_links": [
+            "source://4_cnzyy_org#page=51"
+          ],
+          "citation_markdown": "[中医基础理论（新世纪第4版）cnzyy.org p.51](source://4_cnzyy_org#page=51)",
+          "source_id": "4_cnzyy_org",
+          "source_match_ratio": 1.0,
+          "chunk_index": 70,
+          "source_display_name": "中医基础理论（新世纪第4版）cnzyy.org",
+          "source_type": "uploaded_pdf"
+        },
+        {
+          "chunk_id": "p51_c1",
+          "citation_link": "source://4_cnzyy_org#page=51",
+          "pdf_page": 51,
+          "pdf_page_start": 51,
+          "pdf_page_end": 51,
+          "pdf_pages": [
+            51
+          ],
+          "citation_links": [
+            "source://4_cnzyy_org#page=51"
+          ],
+          "citation_markdown": "[中医基础理论（新世纪第4版）cnzyy.org p.51](source://4_cnzyy_org#page=51)",
+          "source_id": "4_cnzyy_org",
+          "source_match_ratio": 1.0,
+          "chunk_index": 69,
+          "source_display_name": "中医基础理论（新世纪第4版）cnzyy.org",
+          "source_type": "uploaded_pdf"
+        },
+        {
+          "chunk_id": "p74_c3",
+          "citation_link": "source://4_cnzyy_org#page=74",
+          "pdf_page": 74,
+          "pdf_page_start": 74,
+          "pdf_page_end": 74,
+          "pdf_pages": [
+            74
+          ],
+          "citation_links": [
+            "source://4_cnzyy_org#page=74"
+          ],
+          "citation_markdown": "[中医基础理论（新世纪第4版）cnzyy.org p.74](source://4_cnzyy_org#page=74)",
+          "source_id": "4_cnzyy_org",
+          "source_match_ratio": 1.0,
+          "chunk_index": 356,
+          "source_display_name": "中医基础理论（新世纪第4版）cnzyy.org",
+          "source_type": "uploaded_pdf"
+        }
+      ],
+      "scores": [
+        0.9636509418487549,
+        1.1123255491256714,
+        1.1141488552093506,
+        1.1938550472259521,
+        1.1968774795532227
+      ],
+      "search_question": "中醫體系的形成時間？",
+      "max_distance": 1.25,
+      "vectorstore_path": "docs/vectorstores/faiss_openai_text_embedding_3_small_combined"
+    }
+  ]
+}

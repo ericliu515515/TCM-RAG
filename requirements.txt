@@ -16,7 +16,7 @@ rich
 # Local demo app
 streamlit
 
-# PDF chunking support for src/tcmagent/chunk.py
+# PDF chunking support for src/tcmrag/chunk.py
 pymupdf
 pypdf
 
